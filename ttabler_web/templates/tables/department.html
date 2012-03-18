@@ -1,0 +1,70 @@
+{% extends 'tables/base.html' %}
+
+{% set main_table_col_count = 3 %}
+{% set main_table_url = url_for("ajax_department_get") %}
+{% set form_editor_header = "Кафедры" %}
+
+{% block main_table_header %}
+<th>&nbsp;</th>
+<th>Название</th>
+<th>&nbsp;</th>
+{% endblock %}
+
+
+{% block form_editor_fields %}
+{{ render_edit("edit-name", "Название") }}
+{% endblock %}
+
+
+{% block scripts %}
+<script id="main-table-template" type="text/x-jquery-template">
+<tr id="main-table-row-${id}" objectId="${id}">
+{% raw %}
+	<td>&nbsp;</td>
+	<td>${ name }</td>
+	<td>
+		<a class="button" href="javascript:void(0)"
+			onClick="itemEdit(${id})"><i class="icon-pencil"></i></a>
+		<a class="button" href="javascript:void(0)"
+			onClick="itemRemove(${id})"><i class="icon-remove"></i></a>
+		<span width="24px">&nbsp;</span>
+		<a class="button" href="javascript:void(0)"
+			>Группы</a>
+	</td>
+{% endraw %}
+</tr>
+</script>
+
+<script>
+	var ajaxParams = "?faculty_id={{faculty_id}}"
+	var sampleFields = ["name"];
+	
+	function formEditorGetObject() {
+		var currObject = {};
+		for (var i = 0; i < sampleFields.length; ++i) {
+			var fld = sampleFields[i];
+			currObject[fld] = $("#edit-" + fld).attr("value");
+		}
+		currObject["faculty_id"] = {{faculty_id}};
+		return currObject;
+	}
+	
+	function formEditorFill(objectId) {
+		var currObject = tableData[objectId]; 
+		for (var i = 0; i < sampleFields.length; ++i) {
+			var fld = sampleFields[i];
+			$("#edit-" + fld).attr("value", currObject[fld]);
+		}
+	}
+	function formEditorClear() {	
+		for (var i = 0; i < sampleFields.length; ++i) {
+			var fld = sampleFields[i];
+			$("#edit-" + fld).attr("value", "");
+		}
+	}
+
+	function getObjectName(objectId) {
+		return "кафедру " + tableData[objectId].name;
+	}
+</script>
+{% endblock %}

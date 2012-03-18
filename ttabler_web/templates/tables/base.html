@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% from "_formhelpers.html" import render_edit %}
+
+{% block content %}
+
+{% block scripts %}
+{% endblock %}
+
+{% block main_table_empty_template %}
+<script id="main-table-empty-template" type="text/x-jquery-template">
+<tr>
+	<td colspan="{{ main_table_col_count }}">Записи отсутствуют</td>
+</tr>
+</script>
+{% endblock %}
+
+{% block common_table_script %}
+<script>
+	var tableData = {};
+	var currObjectId = null;
+
+	function processResponse(response, table, settings) {
+		tableData = {};
+		var values = response.values;
+		for (var i = 0; i < values.length; ++i) {
+			tableData[values[i].id] = values[i];
+		}
+		return 0;
+	}
+
+	function itemRemove(objectId) {
+		currObjectId = objectId;
+		$("#confirm-message").html("Вы действительно хотите удалить " + getObjectName(currObjectId) + "?");
+		$('#form-confirm').modal({
+			keyboard: true
+		});
+	}
+
+	function onClickRemove() {
+		$.ajax({
+            url: '{{ main_table_url }}/' + currObjectId,
+            type: 'DELETE',
+            success: function(res) {
+            	//alert(res.name);
+            	$("#main-table-row-" + currObjectId).remove();
+            	delete tableData[currObjectId];
+            	$('#form-confirm').modal("hide");
+            }
+        });		
+	}
+
+	function itemEdit(objectId) {
+		currObjectId = objectId;
+		formEditorFill(currObjectId);
+		$("#btn-editor-save").html("Сохранить");
+		$('#form-editor').modal({
+			keyboard: true
+		});
+	}
+
+	function onClickCreate(objectId) {
+		currObjectId = null;
+		formEditorClear();
+		$("#btn-editor-save").html("Создать");
+		$('#form-editor').modal({
+			keyboard: true
+		});
+	}
+
+	function reloadTable() {
+		$("#main-table").ajaxTable({
+      		"url": '{{ main_table_url }}' + ajaxParams,
+      		"template": "main-table-template",
+      		//"emptyTemplate": "main-table-empty-template",
+      		"sortable": true,
+      		"processResponse": processResponse,
+      		"interval": 0
+      	});
+	}
+	
+	function onClickSave() {
+		var currObject = formEditorGetObject();
+		if (currObjectId != null) {
+			$.ajax({
+	            url: '{{ main_table_url }}/' + currObjectId,
+	            type: 'PUT',
+	            data: $.toJSON(currObject),
+	            success: function(res) {
+	            	//alert(res.name);
+	            	$("#main-table-row-" + currObjectId).replaceWith(
+	            		function() {
+	            			return $("#main-table-template").tmpl(res);		
+	            		}
+	            	);
+	            	tableData[res.id] = res;
+	            	$('#form-editor').modal("hide");
+	            }
+	        });
+		} else {
+			$.ajax({
+	            url: '{{ main_table_url }}',
+	            type: 'POST',
+	            data: $.toJSON(currObject),
+	            success: function(res) {
+	            	//alert(res.name);
+	            	$("#main-table-template").tmpl(res).appendTo($("#main-table-body"));		
+	            	tableData[res.id] = res;
+	            	$('#form-editor').modal("hide");
+	            }
+	        });
+			
+		}
+	}
+	
+	function onReady() {
+		$("#btn-editor-save").click(onClickSave);
+		$("#btn-confirm-yes").click(onClickRemove);
+		$("#btn-create").click(onClickCreate);
+		$.ajaxSetup({contentType: "application/json"});
+		reloadTable();		
+	}
+	$(document).ready(onReady);
+</script>	
+{% endblock %}
+
+{% block form_editor %}
+<div class="modal hide" id="form-editor">
+    <div class="modal-header">
+    <a class="close" data-dismiss="modal">×</a>
+    <h3>{{ form_editor_header }}</h3>
+    </div>
+    <div class="modal-body">
+        <form class="form-horizontal">
+<fieldset>
+{% block form_editor_fields %}
+{% endblock %}
+</fieldset>
+    </form>
+    </div>
+    <div class="modal-footer">
+    <a href="javascript:void(0)" class="btn btn-primary" id="btn-editor-save">Сохранить</a>
+    <a href="javascript:void(0)" data-dismiss="modal" class="btn">Отменить</a>    
+    </div>
+</div>
+{% endblock %}
+
+{% block form_confirm %}
+<div class="modal hide" id="form-confirm">
+    <div class="modal-header">
+    <a class="close" data-dismiss="modal">×</a>
+    <h3>Подтверждение</h3>
+    </div>
+    <div class="modal-body">
+    	<div id="confirm-message"></div>
+    </div>
+    <div class="modal-footer">
+    <a href="javascript:void(0)" class="btn btn-primary" id="btn-confirm-yes">Да</a>
+    <a href="javascript:void(0)" data-dismiss="modal" class="btn">Нет</a>    
+    </div>
+</div>
+{% endblock %}
+
+
+{% block main_table %} 
+<table id="main-table" class="table table-striped">
+	<thead>
+		<tr>
+		{% block main_table_header %}
+			
+		{% endblock %}
+		</tr>
+	</thead>
+	<tbody id="main-table-body">
+		<tr>
+			<td colspan="{{ main_table_col_count }}">
+				<img src='{{ url_for("static", filename="images/loader.gif") }}'
+					 alt="Loading" />Loading...
+			</td>
+		</tr>
+	</tbody>
+</table>
+<div class="row">
+<div class="span4">&nbsp;</div>
+<div class="span8">
+	<a id="btn-create" class="btn" href="javascript:void(0)">Создать</a>
+</div>
+</div>
+{% endblock %}
+
+{% endblock %}

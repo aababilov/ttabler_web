@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content='text/html; charset=utf-8' http-equiv='Content-Type' />
+    <title>{% block title %} TITLE {%endblock%}</title>
+
+    {% for script_name in [ "jquery.min.js", "jquery-ui.min.js", 
+    	"jquery.quicksearch.js", "jquery.example.min.js", 
+    	"jquery.tmpl.min.js", "jquery.ajaxtable.js",
+    	"jquery.json.js",
+    	"bootstrap.min.js" ] %}
+      <script charset='utf-8' type='text/javascript'
+      	src='{{ url_for("static", filename="js/" + script_name) }}' ></script>
+    {% endfor %}
+    {% for css_name in ["bootstrap.min.css", "jquery-ui.css", "style.css"] %}
+    	<link media='screen' rel='stylesheet'
+    		href='{{ url_for("static", filename="css/" + css_name) }}' />
+    {% endfor %}
+    {% block headerjs %}{% endblock %}
+    {% block headercss %}{% endblock %}
+  </head>
+  <body>
+    <div>&nbsp;</div>
+    <div class="container">
+      {% block content %}
+      {% endblock %}
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+        </div>
+    </footer>
+  </body>
+</html>
+

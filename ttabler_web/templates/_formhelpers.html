@@ -1,0 +1,33 @@
+{% macro render_errors(field) %}
+  {% if field.errors %}
+  <ul>
+    {% for error in field.errors %}
+    <li>{{ error }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+{% endmacro %}
+
+{% macro render_field(field) %}
+
+{% if field.type not in ["HiddenField", "SubmitField"] %}
+<div class="clearfix {% if field.errors  %} error {% endif %}">
+  {{render_errors(field)}}
+  {{ field.label }}
+  <div class="input">
+    {{ field(**kwargs) }}
+  </div>
+</div>
+{% endif %}
+
+{% endmacro %}
+
+
+{% macro render_edit(id, title) %}
+<div class="control-group">
+    <label class="control-label" for="{{id}}">{{title}}</label>
+	<div class="controls">
+		<input type="text" class="input-xlarge" id="{{id}}">
+   </div>
+</div>
+{% endmacro %}
