@@ -1,10 +1,9 @@
 {% extends 'tables/base.html' %}
 
 {% set main_table_col_count = 3 %}
-{% set main_table_url = url_for("ajax_department_get") %}
-{% set form_editor_header = "Кафедра" %}
-{% block title %} "Кафедры" {% endblock %}
-
+{% set main_table_url = url_for("ajax_subject_get") %}
+{% set form_editor_header = "Дисциплина" %}
+{% block title %} Дисциплины {%endblock%}
 
 {% block main_table_header %}
 <th>&nbsp;</th>
@@ -31,16 +30,12 @@
 			onClick="itemRemove(${id})"><i class="icon-remove"></i></a>
 		<span width="24px">&nbsp;</span>
 {% endraw %}
-		<a class="button" href="{{url_for('page_group')}}?department_id=${id}"
-			>Группы</a>
-    <a class="button" href="{{url_for('page_teacher')}}?department_id=${id}"
-      >Преподаватели</a>
 	</td>
 </tr>
 </script>
 
 <script>
-	var ajaxParams = "?faculty_id={{faculty_id}}"
+	var ajaxParams = "";
 	var sampleFields = ["name"];
 	
 	function formEditorGetObject() {
@@ -49,7 +44,6 @@
 			var fld = sampleFields[i];
 			currObject[fld] = $("#edit-" + fld).attr("value");
 		}
-		currObject["faculty_id"] = {{faculty_id}};
 		return currObject;
 	}
 	
@@ -68,7 +62,7 @@
 	}
 
 	function getObjectName(objectId) {
-		return "кафедру " + tableData[objectId].name;
+		return "дисциплину " + tableData[objectId].name;
 	}
 </script>
 {% endblock %}

@@ -52,7 +52,6 @@ def ajax_persistent_update(PersistentClass, id):
     obj_json = request.json
     obj = PersistentClass(obj_json)
     obj.id = id
-    print db.session.__dict__
     db.session.merge(obj)
     db.session.commit()
     return to_json_response(obj.to_json())
@@ -66,24 +65,32 @@ def ajax_persistent_delete(PersistentClass, id):
     return Response("Object with id=%d is deleted\n" % id, status=200)
 
 
+def add_ajax_rules():
+    simple_classes = (
+        Faculty, Department, Group, Teacher,
+        Building, Room, Capability,
+        Subject, Lkind,
+        Curriculum, Ccunit)
+    for cls in simple_classes:
+        cls_name = cls.__tablename__
+        app.add_url_rule("/api/%s/<int:id>" % cls_name, 
+                         "ajax_%s_update" % cls_name,                      
+                         lambda id, cls=cls: ajax_persistent_update(cls, id),
+                         methods=["PUT"])
+        app.add_url_rule("/api/%s/<int:id>" % cls_name,
+                         "ajax_%s_delete" % cls_name,
+                         lambda id, cls=cls: ajax_persistent_delete(cls, id),
+                         methods=['DELETE'])
+        app.add_url_rule("/api/%s" % cls_name,
+                         "ajax_%s_create" % cls_name,
+                         lambda cls=cls: ajax_persistent_create(cls),
+                         methods=['POST'])
+
+add_ajax_rules()
+
 @app.route('/api/faculty', methods=['GET'])
 def ajax_faculty_get():
     return ajax_persistent_get(Faculty)
-
-
-@app.route('/api/faculty', methods=['POST'])
-def ajax_faculty_create():
-    return ajax_persistent_create(Faculty)
-
-
-@app.route('/api/faculty/<int:id>', methods=['PUT'])
-def ajax_faculty_update(id):
-    return ajax_persistent_update(Faculty, id)
-
-
-@app.route('/api/faculty/<int:id>', methods=['DELETE'])
-def ajax_faculty_delete(id):
-    return ajax_persistent_delete(Faculty, id)
 
 
 @app.route('/faculty', methods=['GET'])
@@ -96,24 +103,9 @@ def ajax_department_get():
     filter_by = {}
     try:
         filter_by["faculty_id"] = request.args["faculty_id"]
-    except:
+    except KeyError:
         pass
     return ajax_persistent_get(Department, **filter_by)
-
-
-@app.route('/api/department', methods=['POST'])
-def ajax_department_create():
-    return ajax_persistent_create(Department)
-
-
-@app.route('/api/department/<int:id>', methods=['PUT'])
-def ajax_department_update(id):
-    return ajax_persistent_update(Department, id)
-
-
-@app.route('/api/department/<int:id>', methods=['DELETE'])
-def ajax_department_delete(id):
-    return ajax_persistent_delete(Department, id)
 
 
 @app.route('/department', methods=['GET'])
@@ -123,6 +115,149 @@ def page_department():
     except:
         return Response("Not found", status=404)
     return render_template("tables/department.html", faculty_id=faculty_id)
+
+
+@app.route('/api/group', methods=['GET'])
+def ajax_group_get():
+    filter_by = {}
+    try:
+        filter_by["department_id"] = request.args["department_id"]
+    except KeyError:
+        pass
+    return ajax_persistent_get(Group, **filter_by)
+
+
+@app.route('/group', methods=['GET'])
+def page_group():
+    try:
+        department_id = request.args["department_id"]
+    except:
+        return Response("Not found", status=404)
+    return render_template("tables/group.html", department_id=department_id)
+
+
+@app.route('/api/teacher', methods=['GET'])
+def ajax_teacher_get():
+    filter_by = {}
+    try:
+        filter_by["department_id"] = request.args["department_id"]
+    except KeyError:
+        pass
+    return ajax_persistent_get(Teacher, **filter_by)
+
+
+@app.route('/teacher', methods=['GET'])
+def page_teacher():
+    try:
+        department_id = request.args["department_id"]
+    except:
+        return Response("Not found", status=404)
+    return render_template("tables/teacher.html", department_id=department_id)
+
+
+@app.route('/api/building', methods=['GET'])
+def ajax_building_get():
+    return ajax_persistent_get(Building)
+
+
+@app.route('/building', methods=['GET'])
+def page_building():
+    return render_template("tables/building.html")
+
+
+@app.route('/api/room', methods=['GET'])
+def ajax_room_get():
+    filter_by = {}
+    try:
+        filter_by["building_id"] = request.args["building_id"]
+    except KeyError:
+        pass
+    return ajax_persistent_get(Room, **filter_by)
+
+
+@app.route('/room', methods=['GET'])
+def page_room():
+    try:
+        building_id = request.args["building_id"]
+    except:
+        return Response("Not found", status=404)
+    return render_template("tables/room.html", building_id=building_id)
+
+
+@app.route('/api/capability', methods=['GET'])
+def ajax_capability_get():
+    return ajax_persistent_get(Capability)
+
+
+@app.route('/capability', methods=['GET'])
+def page_capability():
+    return render_template("tables/capability.html")
+
+
+@app.route('/api/subject', methods=['GET'])
+def ajax_subject_get():
+    return ajax_persistent_get(Subject)
+
+
+@app.route('/subject', methods=['GET'])
+def page_subject():
+    return render_template("tables/subject.html")
+
+
+@app.route('/api/lkind', methods=['GET'])
+def ajax_lkind_get():
+    return ajax_persistent_get(Lkind)
+
+
+@app.route('/lkind', methods=['GET'])
+def page_lkind():
+    return render_template("tables/lkind.html")
+
+
+@app.route('/api/curriculum', methods=['GET'])
+def ajax_curriculum_get():
+    return ajax_persistent_get(Curriculum)
+
+
+@app.route('/curriculum', methods=['GET'])
+def page_curriculum():
+    return render_template("tables/curriculum.html")
+
+
+@app.route('/api/ccunit', methods=['GET'])
+def ajax_ccunit_get():
+    filter_by = {}
+    try:
+        filter_by["curriculum_id"] = request.args["curriculum_id"]
+    except KeyError:
+        pass
+    return ajax_persistent_get(Ccunit, **filter_by)
+
+
+def map_by_lambda(cls, lam=lambda obj: obj.name):
+    map = {}
+    query = cls.query
+    for obj in query.all():
+        map[obj.id] = lam(obj) 
+    return map
+
+
+@app.route('/ccunit', methods=['GET'])
+def page_ccunit():
+    try:
+        curriculum_id = request.args["curriculum_id"]
+    except:
+        return Response("Not found", status=404)
+    return render_template(
+        "tables/ccunit.html", curriculum_id=curriculum_id,
+        combos={
+            "teacher": map_by_lambda(
+                Teacher, 
+                lambda obj: "%s %s %s" % (
+                    obj.surname, obj.name, obj.patronyme)),
+            "subject": map_by_lambda(Subject),
+            "lkind": map_by_lambda(Lkind, lambda obj: obj.abbrev),
+            "class": map_by_lambda(Group, lambda obj: obj.name)})
 
 
 @app.route('/', methods=['GET'])
