@@ -8,16 +8,19 @@
 {% from "_formhelpers.html" import render_file %}
 
 {% block main_buttons %}
-   <a id="btn-filter_teacher" class="btn" href="javascript:void(0)">Показать для</a>
+   <li><a id="btn-filter_teacher" href="javascript:void(0)">Показать для</a>
    
    <select class="input" id="edit-filter_teacher">
    </select>
+   </li>
 
-   <a id="btn-filter_class" class="btn" href="javascript:void(0)">Показать для</a>
+   <li>
+   <a id="btn-filter_class"  href="javascript:void(0)">Показать для</a>
    <select class="input" id="edit-filter_class">
    </select>
-   
-   <a id="btn-upload-ttable" class="btn" href="javascript:void(0)">Закачать расписание</a>  
+   </li>
+   <li>
+   <a id="btn-upload-ttable" href="javascript:void(0)">Закачать расписание</a></li>  
 {% endblock %} 
 
 

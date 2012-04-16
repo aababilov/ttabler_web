@@ -253,7 +253,7 @@ def ajax_ccunit_get():
     try:
         filter_by["curriculum_id"] = request.args["curriculum_id"]
     except KeyError:
-        pass
+        return BadRequest(description="curriculum_id must be specified")
     return ajax_persistent_get(Ccunit, **filter_by)
 
 
@@ -337,13 +337,10 @@ def page_ttable():
 @app.route('/api/ttunit', methods=['GET'])
 def ajax_ttunit_get():
     filter_by = {}
-    for key in "ttable_id", "class_id", "teacher_id":
-        try:
-            filter_by[key] = request.args[key]
-        except KeyError:
-            pass
-    res = []    
-    #for obj in 
+    try:
+        filter_by["ttable_id"] = request.args["ttable_id"]
+    except KeyError:
+        return BadRequest(description="ttable_id must be specified")
     return ajax_persistent_get(Ttunit, **filter_by)
 
 
