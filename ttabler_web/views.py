@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 '''
 Created on Mar 18, 2012
 
@@ -11,10 +13,13 @@ import json
 
 from flask import Flask, request, session, g, redirect, url_for, \
      abort, render_template, flash, Response
+from werkzeug.exceptions import BadRequest, Unauthorized, NotFound
 
 from . import app
 from .database import *
 from sqlalchemy.exc import *
+from . import utils
+
 
 def to_json_response(obj):
     return Response(json.dumps(obj) + "\n", 
@@ -34,7 +39,7 @@ def ajax_persistent_get(PersistentClass, **filter_by):
 
 def ajax_persistent_create(PersistentClass):
     obj_json = request.json
-    obj = PersistentClass(obj_json)
+    obj = PersistentClass(**obj_json)
     db.session.add(obj)
     try:
         db.session.commit()
@@ -50,7 +55,7 @@ def ajax_persistent_update(PersistentClass, id):
     if PersistentClass.query.filter_by(id=id).count() == 0:
         return Response("Object with id=%d is not found\n" % id, status=404)
     obj_json = request.json
-    obj = PersistentClass(obj_json)
+    obj = PersistentClass(**obj_json)
     obj.id = id
     db.session.merge(obj)
     db.session.commit()
@@ -70,7 +75,9 @@ def add_ajax_rules():
         Faculty, Department, Group, Teacher,
         Building, Room, Capability,
         Subject, Lkind,
-        Curriculum, Ccunit)
+        Curriculum, Ccunit,
+        Ttable, Ttunit,
+        Period)
     for cls in simple_classes:
         cls_name = cls.__tablename__
         app.add_url_rule("/api/%s/<int:id>" % cls_name, 
@@ -87,6 +94,22 @@ def add_ajax_rules():
                          methods=['POST'])
 
 add_ajax_rules()
+
+
+@app.route('/api/period', methods=['GET'])
+def ajax_period_get():
+    values = []
+    query = Period.query.order_by(Period.id)
+    for obj in query.all():
+        values.append(obj.to_json())
+    
+    return to_json_response({"values": values})
+
+
+@app.route('/period', methods=['GET'])
+def page_period():
+    return render_template("tables/period.html")
+
 
 @app.route('/api/faculty', methods=['GET'])
 def ajax_faculty_get():
@@ -241,26 +264,121 @@ def map_by_lambda(cls, lam=lambda obj: obj.name):
         map[obj.id] = lam(obj) 
     return map
 
-
+def ccunit_combos():
+    return {
+            "teacher": map_by_lambda(
+                Teacher, 
+                lambda obj: "%s %s %s" % (
+                    obj.surname, obj.name or "", obj.patronyme or "")),
+            "subject": map_by_lambda(Subject),
+            "lkind": map_by_lambda(Lkind, lambda obj: obj.abbrev),
+            "class": map_by_lambda(Group, lambda obj: obj.name)}
+    
 @app.route('/ccunit', methods=['GET'])
 def page_ccunit():
     try:
         curriculum_id = request.args["curriculum_id"]
     except:
         return Response("Not found", status=404)
+    lkinds = [(lk.id, lk.abbrev) for lk in Lkind.query.all()]
+    department_list = [(dep.id, dep.name) for dep in Department.query.all()]
+
     return render_template(
-        "tables/ccunit.html", curriculum_id=curriculum_id,
-        combos={
-            "teacher": map_by_lambda(
-                Teacher, 
-                lambda obj: "%s %s %s" % (
-                    obj.surname, obj.name, obj.patronyme)),
-            "subject": map_by_lambda(Subject),
-            "lkind": map_by_lambda(Lkind, lambda obj: obj.abbrev),
-            "class": map_by_lambda(Group, lambda obj: obj.name)})
+        "tables/ccunit.html",        
+        curriculum_id=curriculum_id,
+        col_options=zip(xrange(0, 10), xrange(1, 10)),
+        lkinds=lkinds,
+        department_list=department_list,
+        combos=ccunit_combos())
+
+
+@app.route('/curriculum_upload', methods=['POST'])
+def curriculum_upload():
+    curriculum_id = request.form["curriculum_id"]
+    curriculum_file = request.files["curriculum_file"]
+
+    default_department = int(request.form["default_department"])
+    col_nums = {}
+    for rsrc in "class", "teacher", "subject":
+        col_nums[rsrc] = int(request.form["col_" + rsrc])
+    lkinds = [lk.id for lk in Lkind.query.all()]
+    for lk in lkinds:
+        try:
+            col_nums[lk] = int(request.form["col_lkind_%s" % lk])
+        except KeyError, ValueError:
+            pass
+    if not col_nums:
+        raise BadRequest("no col_nums were set")
+    
+    utils.curriculum_process(curriculum_id, curriculum_file, default_department, col_nums)
+    
+    return redirect("%s?curriculum_id=%s" % (url_for("page_ccunit"), curriculum_id))
+    
+
+@app.route('/api/ttable', methods=['GET'])
+def ajax_ttable_get():
+    filter_by = {}
+    try:
+        filter_by["curriculum_id"] = request.args["curriculum_id"]
+    except KeyError:
+        pass
+    return ajax_persistent_get(Ttable, **filter_by)
+
+
+@app.route('/ttable', methods=['GET'])
+def page_ttable():
+    try:
+        curriculum_id = request.args["curriculum_id"]
+    except:
+        return Response("Not found", status=404)
+    return render_template("tables/ttable.html", curriculum_id=curriculum_id)
+
+
+@app.route('/api/ttunit', methods=['GET'])
+def ajax_ttunit_get():
+    filter_by = {}
+    for key in "ttable_id", "class_id", "teacher_id":
+        try:
+            filter_by[key] = request.args[key]
+        except KeyError:
+            pass
+    res = []    
+    #for obj in 
+    return ajax_persistent_get(Ttunit, **filter_by)
+
+
+@app.route('/ttunit', methods=['GET'])
+def page_ttunit():
+    try:
+        ttable_id = request.args["ttable_id"]
+    except:
+        return Response("Not found", status=404)
+    ttable = Ttable.query.filter_by(id=ttable_id).first_or_404()
+    combos = ccunit_combos()
+    dealer = utils.ResourceDealer(None)
+    dealer.load_rooms()
+    combos["room"] = dealer.room_by_id
+    combos["period"] = dict(((obj.id, "%s:%02s" % (obj.hours, obj.minutes))
+                             for obj in Period.query))
+    return render_template("tables/ttunit.html",
+                           ttable_id=ttable_id,
+                           curriculum_id=ttable.curriculum_id,
+                           max_period=utils.MAX_PERIOD,
+                           combos=combos)
+
+
+@app.route('/ttable_upload', methods=['POST'])
+def ttable_upload():
+    ttable_id = request.form["ttable_id"]
+    
+    ttable_file = request.files["ttable_file"]
+
+    utils.ttable_process(ttable_id, ttable_file)
+    return redirect("%s?ttable_id=%s" % (url_for("page_ttunit"), ttable_id))
 
 
 @app.route('/', methods=['GET'])
 def wizard_handler():
     session.clear()
     return redirect(url_for('page_faculty'))
+

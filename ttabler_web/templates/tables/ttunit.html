@@ -1,0 +1,197 @@
+{% extends 'tables/base.html' %}
+
+{% set main_table_col_count = 8 %}
+{% set main_table_url = url_for("ajax_ttunit_get") %}
+{% set form_editor_header = "Расписание" %}
+{% set page_title = "Расписание" %}
+
+{% from "_formhelpers.html" import render_file %}
+
+{% block main_buttons %}
+   <a id="btn-filter_teacher" class="btn" href="javascript:void(0)">Показать для</a>
+   
+   <select class="input" id="edit-filter_teacher">
+   </select>
+
+   <a id="btn-filter_class" class="btn" href="javascript:void(0)">Показать для</a>
+   <select class="input" id="edit-filter_class">
+   </select>
+   
+   <a id="btn-upload-ttable" class="btn" href="javascript:void(0)">Закачать расписание</a>  
+{% endblock %} 
+
+
+{% block main_table_header %}
+<th>&nbsp;</th>
+<th>Дисциплина</th>
+<th>Тип</th>
+<th>Субъект</th>
+<th>Место</th>
+<th>Время</th>
+<th>&nbsp;</th>
+{% endblock %}
+
+
+{% block form_editor_fields %}
+{{ render_combo("edit-room_id", "Аудитория") }}
+{{ render_combo("edit-day", "День") }}
+{{ render_combo("edit-period", "Пара") }}
+{% endblock %}
+
+{% block scripts %}
+<div class="modal hide" id="form-upload-ttable">
+    <div class="modal-header">
+    <a class="close" data-dismiss="modal">×</a>
+    <h3>Закачать ведомость учебных поручений</h3>
+    </div>
+<form class="form-horizontal" enctype="multipart/form-data"
+    method="POST" action="{{url_for("ttable_upload")}}">
+    <div class="modal-body">
+
+<fieldset>
+  <div class="control-group">
+{{render_file("ttable_file", "Файл")}}
+<input type="hidden" name="ttable_id" value="{{ttable_id}}"> 
+</div>
+</fieldset>
+    
+    </div>
+    <div class="modal-footer">
+    <button href="javascript:void(0)" class="btn btn-primary" type="submit">Закачать</button>
+    <a href="javascript:void(0)" data-dismiss="modal" class="btn">Отменить</a>    
+    </div>
+</form>
+</div>
+
+<script id="main-table-template" type="text/x-jquery-template">
+<tr id="main-table-row-${id}" objectId="${id}">
+{% raw %}
+	<td>&nbsp;</td>
+    <td>${ getForCcunitCombo("subject", ccunit_id) }</td>
+    <td>${ getForCcunitCombo("lkind", ccunit_id) }</td>
+    <td>${ getForCcunitCombo(currPartner, ccunit_id) }</td>
+    <td>${ getForCombo("room", room_id) }</td>
+    <td>${ getForDayPer(day_per) }</td>
+	<td>
+		<a class="button" href="javascript:void(0)"
+			onClick="itemEdit(${id})"><i class="icon-pencil"></i></a>
+		<span width="24px">&nbsp;</span>
+{% endraw %}
+	</td>
+</tr>
+</script>
+
+<script>
+  var combos = { 
+        {% for key, value in combos.iteritems() %}
+        "{{ key }}": { 
+            {% for id, title in value.iteritems() %}
+                "{{ id }}": "{{ title }}",        
+            {% endfor %}
+        },
+    {% endfor %}
+    "day": {
+    	"0": "Пн",
+    	"1": "Вт",
+    	"2": "Ср",
+    	"3": "Чт",
+    	"4": "Пт",
+    	"5": "Сб",
+    }
+  };
+
+  var ccunits = {};
+  var currPartner = "class";
+  autoLoad = false;
+	var baseAjaxParams = "?ttable_id={{ttable_id}}";
+	var ajaxParams = baseAjaxParams;
+	var sampleFields = [];
+	var comboFields = ["room_id", "day", "period"];
+	var MAX_PERIOD = {{max_period}};
+	
+	  function getForCcunitCombo(objType, objId) {
+	      var value = ccunits[objId];
+	      if (value == undefined)
+	          return "<?>";
+	      return getForCombo(objType, value[objType + "_id"]);
+	  }
+	  
+	  $(document).ready(function(){
+	      populateCombo($("#edit-room_id"), combos["room"]);
+	      populateCombo($("#edit-day"), combos["day"]);
+	      populateCombo($("#edit-period"), combos["period"]);
+	      populateCombo($("#edit-filter_teacher"), combos["teacher"]);
+	      populateCombo($("#edit-filter_class"), combos["class"]);
+	      currPartner = "class";
+	      for (var k in combos["class"]) {
+	    	  ajaxParams = baseAjaxParams + "&class_id=" + k;
+	    	  break;
+	      }
+          
+	      $.get("{{url_for("ajax_ccunit_get")}}?curriculum_id={{curriculum_id}}",
+	        function(data){
+	          for (var i = 0; i < data.values.length; ++i) {
+	              var unit = data.values[i];
+	              ccunits[unit.id] = unit;
+	          }       
+	          reloadTable();
+	       }, "json");
+	      
+	        $("#btn-upload-ttable").click(
+	            function() {
+	                $('#form-upload-ttable').modal({
+	                    keyboard: true
+	                });
+	            }
+	        );
+	        
+	        $("#btn-filter_class").click(function() {
+	            currPartner = "class";
+	            ajaxParams = baseAjaxParams + "&class_id=" + $("#edit-filter_class").attr("value");
+	            reloadTable();
+	        });
+	        $("#btn-filter_teacher").click(function() {
+                currPartner = "teacher";
+                ajaxParams = baseAjaxParams + "&teacher_id=" + $("#edit-filter_teacher").attr("value");
+                reloadTable();
+            });
+	    });  
+	  
+	  
+	function formEditorGetObject() {
+		var currObject = {};
+		currObject.day_per = parseInt($("#edit-day").attr("value")) * MAX_PERIOD
+		  + parseInt($("#edit-period").attr("value")) - 1;
+		currObject.room_id = $("#edit-room_id").attr("value");
+		currObject["ttable_id"] = {{ttable_id}};
+		return currObject;
+	}
+	
+	function formEditorFill(objectId) {
+		var currObject = { "room_id": tableData[objectId].room_id };
+		var day_per = tableData[objectId].day_per;
+		currObject.day = Math.ceil(day_per / MAX_PERIOD);
+		currObject.period = day_per % MAX_PERIOD + 1;
+		for (var i = 0; i < comboFields.length; ++i) {
+            var fld = comboFields[i];
+            $("#edit-" + fld + " [value=" + currObject[fld] + "]").attr("selected", "selected");
+		}
+	}
+	
+	function formEditorClear() {	
+		for (var i = 0; i < sampleFields.length; ++i) {
+			var fld = sampleFields[i];
+			$("#edit-" + fld).attr("value", "");
+		}
+	}
+
+	function getObjectName(objectId) {
+		return objectId;
+	}
+	
+	function getForDayPer(day_per) {
+		return combos.day[Math.ceil(day_per / MAX_PERIOD)] + " " + 
+		    combos.period[day_per % MAX_PERIOD + 1];
+	}
+</script>
+{% endblock %}

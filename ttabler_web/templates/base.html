@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta content='text/html; charset=utf-8' http-equiv='Content-Type' />
-    <title>{% block title %} TITLE {%endblock%}</title>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }}</title>
 
     {% for script_name in [ "jquery.min.js", "jquery-ui.min.js", 
     	"jquery.quicksearch.js", "jquery.example.min.js", 
@@ -12,7 +13,8 @@
       <script charset='utf-8' type='text/javascript'
       	src='{{ url_for("static", filename="js/" + script_name) }}' ></script>
     {% endfor %}
-    {% for css_name in ["bootstrap.min.css", "jquery-ui.css", "style.css"] %}
+    {% for css_name in ["bootstrap.min.css", "bootstrap-responsive.min.css",
+      "jquery-ui.css", "style.css"] %}
     	<link media='screen' rel='stylesheet'
     		href='{{ url_for("static", filename="css/" + css_name) }}' />
     {% endfor %}

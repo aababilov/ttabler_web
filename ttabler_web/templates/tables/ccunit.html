@@ -3,7 +3,15 @@
 {% set main_table_col_count = 8 %}
 {% set main_table_url = url_for("ajax_ccunit_get") %}
 {% set form_editor_header = "Учебное поручение" %}
-{% block title %} Учебные поручения {%endblock%}
+{% set page_title = "Учебные поручения" %}
+
+{% from "_formhelpers.html" import render_file %}
+
+{% block main_buttons %}
+    <a id="btn-create" class="btn" href="javascript:void(0)">Создать</a>
+    <a id="btn-upload-curriculum" class="btn" href="javascript:void(0)">Закачать ведомость</a>
+{% endblock %} 
+
 
 {% block main_table_header %}
 <th>&nbsp;</th>
@@ -18,16 +26,48 @@
 
 
 {% block form_editor_fields %}
-{{ render_combo("edit-subject", "Дисциплина") }}
-{{ render_combo("edit-lkind", "Тип") }}
-{{ render_combo("edit-teacher", "Преподаватель") }}
-{{ render_combo("edit-class", "Класс") }}
+{{ render_combo("edit-subject_id", "Дисциплина") }}
+{{ render_combo("edit-lkind_id", "Тип") }}
+{{ render_combo("edit-teacher_id", "Преподаватель") }}
+{{ render_combo("edit-class_id", "Класс") }}
 {{ render_edit("edit-count", "Количество") }}
 {{ render_edit("edit-block_size", "Блок") }}
 {% endblock %}
 
 
 {% block scripts %}
+<div class="modal hide" id="form-upload-curriculum">
+    <div class="modal-header">
+    <a class="close" data-dismiss="modal">×</a>
+    <h3>Закачать ведомость учебных поручений</h3>
+    </div>
+<form class="form-horizontal" enctype="multipart/form-data"
+    method="POST" action="{{url_for("curriculum_upload")}}">
+    <div class="modal-body">
+
+<fieldset>
+  <div class="control-group">
+{{render_file("curriculum_file", "Файл")}}
+{{render_combo("default_department", "Кафедра по умолчанию", department_list)}}
+<legend>Столбцы</legend>
+{{render_combo("col_subject", "Предмет", col_options, value=0)}}
+{{render_combo("col_teacher", "Преподаватель", col_options, value=1)}}
+{{render_combo("col_class", "Класс", col_options, value=2)}}
+{% for lk in lkinds %}
+  {{render_combo("col_lkind_%s" % lk[0], "Занятие (%s)" % lk[1], col_options, value=loop.index + 2)}}
+{% endfor %}
+<input type="hidden" name="curriculum_id" value="{{curriculum_id}}"> 
+</div>
+</fieldset>
+    
+    </div>
+    <div class="modal-footer">
+    <button href="javascript:void(0)" class="btn btn-primary" type="submit">Закачать</button>
+    <a href="javascript:void(0)" data-dismiss="modal" class="btn">Отменить</a>    
+    </div>
+</form>
+</div>
+
 <script id="main-table-template" type="text/x-jquery-template">
 <tr id="main-table-row-${id}" objectId="${id}">
 {% raw %}
@@ -47,8 +87,6 @@
 {% endraw %}
 		<a class="button" href="{{url_for('page_group')}}?department_id=${id}"
 			>Группы</a>
-    <a class="button" href="{{url_for('page_teacher')}}?department_id=${id}"
-      >Преподаватели</a>
 	</td>
 </tr>
 </script>
@@ -63,38 +101,32 @@
           },
       {% endfor %} };
 
-  function getForCombo(objType, objId) {
-	  var value = combos[objType];
-	  if (value == undefined)
-		  return "<?>";
-		value = value[objId];
-		if (value == undefined)
-	      return "<?>";
-	  return value;
-  }
-  
-  function populateCombos() {
-	  for (var objType in combos) {
-		  var selectText = "";
-		  var objCombo = combos[objType];
-		  for (var key in objCombo) {
-			  selectText += "<option value='" + key + "'>" + objCombo[key] + "</option>\n";
-		  }
-		  $("#edit-" + objType).append(selectText);	  
-	  }
-  }
-	$(document).ready(populateCombos);
-	  
+	$(document).ready(populateCombosAuto);
+	
+	$(document).ready(function(){
+		$("#btn-upload-curriculum").click(
+			function() {
+    			$('#form-upload-curriculum').modal({
+    			    keyboard: true
+    			});
+			}
+		);
+	});  
   
 	var ajaxParams = "?curriculum_id={{curriculum_id}}"
-	var sampleFields = ["lkind_id", "subject_id"];
-	
+	var sampleFields = ["block_size", "count"];
+	var comboFields = ["subject_id", "lkind_id", "class_id", "teacher_id"];
+
 	function formEditorGetObject() {
 		var currObject = {};
 		for (var i = 0; i < sampleFields.length; ++i) {
 			var fld = sampleFields[i];
 			currObject[fld] = $("#edit-" + fld).attr("value");
 		}
+		for (var i = 0; i < comboFields.length; ++i) {
+            var fld = comboFields[i];
+            currObject[fld] = $("#edit-" + fld).attr("value");
+        }
 		currObject["curriculum_id"] = {{curriculum_id}};
 		return currObject;
 	}
@@ -104,6 +136,10 @@
 		for (var i = 0; i < sampleFields.length; ++i) {
 			var fld = sampleFields[i];
 			$("#edit-" + fld).attr("value", currObject[fld]);
+		}
+		for (var i = 0; i < comboFields.length; ++i) {
+            var fld = comboFields[i];
+            $("#edit-" + fld + " [value=" + currObject[fld] + "]").attr("selected", "selected");
 		}
 	}
 	function formEditorClear() {	

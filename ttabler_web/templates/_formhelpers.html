@@ -23,21 +23,37 @@
 {% endmacro %}
 
 
-{% macro render_edit(id, title) %}
+{% macro render_edit(id, title, readonly=false) %}
 <div class="control-group">
     <label class="control-label" for="{{id}}">{{title}}</label>
 	<div class="controls">
-		<input type="text" class="input-xlarge" id="{{id}}"/>
+		<input type="text" class="input-xlarge"
+        {% if readonly %} readonly="readonly" {% endif %} 
+        id="{{id}}" name="{{id}}"/>
    </div>
 </div>
 {% endmacro %}
 
-{% macro render_combo(id, title) %}
+{% macro render_combo(id, title, options=[], value=None) %}
 <div class="control-group">
     <label class="control-label" for="{{id}}">{{title}}</label>
-  <div class="controls">
-    <select class="input-xlarge" id="{{id}}">
-    </select>
+    <div class="controls">
+        <select class="input-xlarge" id="{{id}}" name="{{id}}">
+        {% for opt in options %}
+          <option value="{{opt[0]}}" {%if value == opt[0] %} selected="selected" {% endif %}>
+            {{opt[1]}}
+          </option>
+        {% endfor %}
+        </select>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_file(id, title) %}
+<div class="control-group">
+    <label class="control-label" for="{{id}}">{{title}}</label>
+    <div class="controls">
+        <input type="file" id="{{id}}" name="{{id}}">
    </div>
 </div>
 {% endmacro %}

@@ -1,19 +1,23 @@
 {% extends 'tables/base.html' %}
 
-{% set main_table_col_count = 4 %}
-{% set main_table_url = url_for("ajax_capability_get") %}
-{% set form_editor_header = "Свойство аудитории" %}
-{% set page_title = "Свойства аудиторий" %}
+{% set main_table_col_count = 5 %}
+{% set main_table_url = url_for("ajax_period_get") %}
+{% set form_editor_header = "Пара" %}
+{% set page_title = "Пары" %}
 
 {% block main_table_header %}
 <th>&nbsp;</th>
-<th>Название</th>
+<th>Номер</th>
+<th>Часы</th>
+<th>Минуты</th>
 <th>&nbsp;</th>
 {% endblock %}
 
 
 {% block form_editor_fields %}
-{{ render_edit("edit-name", "Название") }}
+{{ render_edit("edit-id", "Номер", readonly=true) }}
+{{ render_edit("edit-hours", "Часы") }}
+{{ render_edit("edit-minutes", "Минуты") }}
 {% endblock %}
 
 
@@ -22,12 +26,12 @@
 <tr id="main-table-row-${id}" objectId="${id}">
 {% raw %}
 	<td>&nbsp;</td>
-	<td>${ name }</td>
+    <td>${ id }</td>
+	<td>${ hours }</td>
+	<td>${ minutes }</td>
 	<td>
 		<a class="button" href="javascript:void(0)"
 			onClick="itemEdit(${id})"><i class="icon-pencil"></i></a>
-		<a class="button" href="javascript:void(0)"
-			onClick="itemRemove(${id})"><i class="icon-remove"></i></a>
 		<span width="24px">&nbsp;</span>
 {% endraw %}
 	</td>
@@ -36,7 +40,7 @@
 
 <script>
 	var ajaxParams = "";
-	var sampleFields = ["name"];
+	var sampleFields = ["id", "hours", "minutes"];
 	
 	function formEditorGetObject() {
 		var currObject = {};
@@ -54,15 +58,16 @@
 			$("#edit-" + fld).attr("value", currObject[fld]);
 		}
 	}
-	function formEditorClear() {	
+	function formEditorClear() {
 		for (var i = 0; i < sampleFields.length; ++i) {
 			var fld = sampleFields[i];
 			$("#edit-" + fld).attr("value", "");
 		}
+		$("#edit-id").attr("value", Object.keys(tableData).length + 1);
 	}
 
 	function getObjectName(objectId) {
-		return "свойство аудитории " + tableData[objectId].name;
+		return "пару " + tableData[objectId].abbrev;
 	}
 </script>
 {% endblock %}

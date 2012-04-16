@@ -4,7 +4,42 @@
 
 {% block content %}
 
-{% block scripts %}
+{% block navbar %}
+<div class="navbar">
+    <div class="navbar-inner">
+      <div class="container">
+        <a class="brand" href="#">TTabler</a>
+        <ul class="nav">
+           <li><a href="{{url_for("page_faculty")}}">Факультеты</a></li>
+           
+           <li class="dropdown">
+               <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                Аудитории
+                <b class="caret"></b>
+               </a>
+               <ul class="dropdown-menu">
+                 <li><a href="{{url_for("page_building")}}">Корпусы</a></li>
+                 <li><a href="{{url_for("page_capability")}}">Свойства аудиторий</a></li>
+                 <li><a href="{{url_for("page_period")}}">Пары</a></li>
+               </ul>
+           </li>
+            
+           <li><a href="{{url_for("page_curriculum")}}">Учебные поручения</a></li>
+           
+           <li class="dropdown">
+               <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                Занятия
+                <b class="caret"></b>
+               </a>
+               <ul class="dropdown-menu">
+                 <li><a href="{{url_for("page_subject")}}">Дисциплины</a></li>
+                 <li><a href="{{url_for("page_lkind")}}">Типы занятий</a></li>
+               </ul>
+            </li>
+        </ul>
+      </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block main_table_empty_template %}
@@ -19,6 +54,7 @@
 <script>
 	var tableData = {};
 	var currObjectId = null;
+	var autoLoad = true;
 
 	function processResponse(response, table, settings) {
 		tableData = {};
@@ -118,11 +154,44 @@
 		$("#btn-confirm-yes").click(onClickRemove);
 		$("#btn-create").click(onClickCreate);
 		$.ajaxSetup({contentType: "application/json"});
-		reloadTable();		
+		if (autoLoad)
+			reloadTable();
 	}
+	
 	$(document).ready(onReady);
+	
+	function getForCombo(objType, objId) {
+	      var value = combos[objType];
+	      if (value == undefined)
+	          return "<?>";
+	        value = value[objId];
+	        if (value == undefined)
+	          return "<?>";
+	      return value;
+	  }
+	  
+	function populateCombo(combo, objCombo) {
+		var selectText = "";
+        for (var key in objCombo) {
+            selectText += "<option value='" + key + "'>" + objCombo[key] + "</option>\n";
+        }
+        combo.append(selectText);
+	}
+	
+  function populateCombosAuto() {
+      for (var objType in combos) {
+    	  $("#edit-" + objType + "_id").each(function() {
+    		  populateCombo(this, objCombo = combos[objType]);
+          });
+      }
+  }
+
 </script>	
 {% endblock %}
+
+{% block scripts %}
+{% endblock %}
+
 
 {% block form_editor %}
 <div class="modal hide" id="form-editor">
@@ -161,6 +230,10 @@
 </div>
 {% endblock %}
 
+<h1>{{page_title}}</h1>
+{% block main_buttons %}
+    <a float="right" id="btn-create" class="btn" href="javascript:void(0)">Создать</a>
+{% endblock %} 
 
 {% block main_table %} 
 <table id="main-table" class="table table-striped">
@@ -180,12 +253,6 @@
 		</tr>
 	</tbody>
 </table>
-<div class="row">
-<div class="span4">&nbsp;</div>
-<div class="span8">
-	<a id="btn-create" class="btn" href="javascript:void(0)">Создать</a>
-</div>
-</div>
 {% endblock %}
 
 {% endblock %}
