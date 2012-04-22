@@ -52,20 +52,21 @@ def ajax_persistent_create(PersistentClass):
 
 
 def ajax_persistent_update(PersistentClass, id):
-    if PersistentClass.query.filter_by(id=id).count() == 0:
+    obj = PersistentClass.query.filter_by(id=id).first()
+    if not obj:
         return Response("Object with id=%d is not found\n" % id, status=404)
     obj_json = request.json
-    obj = PersistentClass(**obj_json)
-    obj.id = id
+    obj.update(obj_json)
     db.session.merge(obj)
     db.session.commit()
     return to_json_response(obj.to_json())
 
 
 def ajax_persistent_delete(PersistentClass, id):
-    i = PersistentClass.query.filter_by(id=id).delete()
-    if i < 1:
+    obj = PersistentClass.query.filter_by(id=id).first()
+    if not obj:
         return Response("Object with id=%d is not found\n" % id, status=404)
+    db.session.delete(obj)
     db.session.commit()
     return Response("Object with id=%d is deleted\n" % id, status=200)
 
@@ -354,7 +355,7 @@ def page_ttunit():
     combos = ccunit_combos()
     dealer = utils.ResourceDealer(None)
     dealer.load_rooms()
-    combos["room"] = dealer.room_by_id
+    combos["room"] = dealer.room_title_by_id
     combos["period"] = dict(((obj.id, "%s:%02s" % (obj.hours, obj.minutes))
                              for obj in Period.query))
     return render_template("tables/ttunit.html",
@@ -367,11 +368,19 @@ def page_ttunit():
 @app.route('/ttable_upload', methods=['POST'])
 def ttable_upload():
     ttable_id = request.form["ttable_id"]
-    
     ttable_file = request.files["ttable_file"]
 
     utils.ttable_process(ttable_id, ttable_file)
     return redirect("%s?ttable_id=%s" % (url_for("page_ttunit"), ttable_id))
+
+
+@app.route('/api/ttable_report')
+def ttable_report():
+    ret = utils.ttable_report(
+        request.args["ttable_id"],
+        request.args["rtype"],
+        [int(i) for i in request.args["ids"].split(",")])
+    return Response(ret)
 
 
 @app.route('/', methods=['GET'])

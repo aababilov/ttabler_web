@@ -6,8 +6,11 @@ Created on Apr 15, 2012
 @author: alessio
 '''
 
+import cStringIO
+
 from .database import *
 from ttabler_web.html2ttm import TtableHtmlParser
+from ttabler_web.ttm2html import HtmlPrinter
 
 
 WEEK_LENGTH = 6
@@ -19,11 +22,25 @@ class ResourceDealer(object):
         self.default_department = default_department
 
     def load_cts(self):
+        faculty_abbrev_by_id = dict(( (obj.id, obj.abbrev) for obj in Faculty.query.all() ))
+        self.faculty_abbrev_by_dep_id = dict((
+            (obj.id, faculty_abbrev_by_id.get(obj.faculty_id, ""))
+            for obj in Department.query.all()
+        ))
+        self.dep_id_by_faculty_abbrev = dict((
+            (v, k)
+            for k, v in self.faculty_abbrev_by_dep_id.iteritems() 
+        ))
+
         self.class_by_id = dict(((obj.id, obj) for obj in Group.query.all()))
         self.teacher_by_id = dict(((obj.id, obj) for obj in Teacher.query.all()))
         self.subject_by_id = dict(((obj.id, obj) for obj in Subject.query.all()))
         
-        self.class_by_name = dict(((obj.name, obj.id) for obj in self.class_by_id.itervalues()))
+        # FIXME: beautiful titles
+        self.class_title_by_id = dict(((obj.id, obj.name) for obj in self.class_by_id.itervalues()))
+        self.teacher_title_by_id = dict(((obj.id, obj.surname) for obj in self.teacher_by_id.itervalues()))
+        
+        self.class_by_name = dict(((v, k) for k, v in self.class_title_by_id.iteritems()))
         self.teacher_by_name = dict(((obj.surname, obj.id) for obj in self.teacher_by_id.itervalues()))
         self.subject_by_name = dict(((obj.name, obj.id) for obj in self.subject_by_id.itervalues()))
 
@@ -33,13 +50,13 @@ class ResourceDealer(object):
         
     def load_rooms(self):
         self.load_buildings()
-        self.room_by_id = dict((
+        self.room_title_by_id = dict((
             (obj.id, "%s %s" % (obj.name, self.building_by_id.get(obj.building_id, None)))
             for obj in Room.query.all()
         ))
-        self.room_by_name = dict((
+        self.room_by_title = dict((
             (value, key)
-            for key, value in self.room_by_id.iteritems()
+            for key, value in self.room_title_by_id.iteritems()
         ))
 
     def teacher_surname(self, name):
@@ -76,7 +93,7 @@ class ResourceDealer(object):
         name_pair_list = []
         building_list = set()
         for name in name_list:
-            if name in self.room_by_name:
+            if name in self.room_by_title:
                 continue
             name_pair = name.rsplit(" ", 1)
             if len(name_pair) < 2:
@@ -216,15 +233,10 @@ def ttable_process(ttable_id, ttable_file):
     ttbl_norm.normalize()
     #curriculum = {(subject, group): teacher}
     curriculum = {}
-    faculty_by_id = dict(( (obj.id, obj) for obj in Faculty.query.all() ))
-    faculty_name_by_dep_id = dict((
-        (obj.id, faculty_by_id.get(obj.faculty_id, ""))
-        for obj in Department.query.all()
-    ))
     for unit in ttbl_norm.ccunit_by_id.itervalues():
         if unit.class_id and unit.teacher_id and unit.subject_id:
             curriculum[(rsrc_dealer.subject_by_id[unit.subject_id].name,
-                        rsrc_dealer.class_by_id[unit.class_id].name)] = (
+                        rsrc_dealer.class_title_by_id[unit.class_id])] = (
                         rsrc_dealer.teacher_by_id[unit.teacher_id].surname)
 
     ignore_time = [u"лаб", u"NO_ROOM", u"каф", u"каф. нарк"]
@@ -251,7 +263,7 @@ def ttable_process(ttable_id, ttable_file):
             print str(ex)
             continue
         ttunit_list = ttunit_by_ccunit_id[ccunit.id]
-        room_id = rsrc_dealer.room_by_name.get(roo, None)
+        room_id = rsrc_dealer.room_by_title.get(roo, None)
         day_per = day * MAX_PERIOD + per
         best_eq = -1
         best_ttunit = None
@@ -269,3 +281,51 @@ def ttable_process(ttable_id, ttable_file):
             db.session.merge(best_ttunit)
     
     db.session.commit()
+
+
+day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+
+def ttable_report(ttable_id, lead_rtype, ids):
+    rsrc_dealer = ResourceDealer(default_department=None)
+    rsrc_dealer.load_cts()
+    rsrc_dealer.load_rooms()
+    
+    ttable = Ttable.query.filter_by(id=ttable_id).first_or_404()
+    ccunit_by_id = {}
+    for unit in Ccunit.query.filter_by(curriculum_id=ttable.curriculum_id):
+        ccunit_by_id[unit.id] = unit
+    ttunit_by_ccunit_id = dict(((id, []) for id in ccunit_by_id.iterkeys()))
+    
+    def iter_events():
+        for ttunit in Ttunit.query.filter_by(ttable_id=ttable_id):
+            try:
+                ccunit = ccunit_by_id[ttunit.ccunit_id]
+            except:
+                continue
+            day_per = ttunit.day_per or 0
+            yield {
+                "room": rsrc_dealer.room_title_by_id.get(ttunit.room_id, ""),
+                "time": (day_per / MAX_PERIOD,
+                         day_per % MAX_PERIOD - 1),
+                "class": rsrc_dealer.class_title_by_id[ccunit.class_id],
+                "teacher": rsrc_dealer.teacher_title_by_id[ccunit.teacher_id],
+                "subject": rsrc_dealer.subject_by_id[ccunit.subject_id].name,
+            }
+    if lead_rtype == "class":
+        lead_reses = [rsrc_dealer.class_title_by_id[i] for i in ids]
+    else:
+        lead_reses = [rsrc_dealer.teacher_title_by_id[i] for i in ids]
+    period_names = ["%d:%d" % (obj.hours, obj.minutes) 
+                    for obj in  Period.query.order_by(Period.id)]
+    out_file = cStringIO.StringIO()
+    
+    html_printer = HtmlPrinter()
+    html_printer.print_html(
+        out_file, 
+        lead_rtype, lead_reses,
+        iter_events(),
+        day_names, period_names, no_slave=False)
+    ret = out_file.getvalue()
+    out_file.close()
+    return ret

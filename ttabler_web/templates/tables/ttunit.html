@@ -1,5 +1,12 @@
 {% extends 'tables/base.html' %}
 
+{% block headerjs %}
+<script charset='utf-8' type='text/javascript'
+  src='{{ url_for("static", filename="js/common.js") }}' ></script>
+<script charset='utf-8' type='text/javascript'
+  src='{{ url_for("static", filename="js/ttunit.js") }}' ></script>
+{% endblock %}
+
 {% set main_table_col_count = 8 %}
 {% set main_table_url = url_for("ajax_ttunit_get") %}
 {% set form_editor_header = "Расписание" %}
@@ -8,19 +15,23 @@
 {% from "_formhelpers.html" import render_file %}
 
 {% block main_buttons %}
-   <li><a id="btn-filter_teacher" href="javascript:void(0)">Показать для</a>
+   <li><a id="btn-filter_teacher" href="javascript:void(0)" style="float: left;">Показать для</a>
    
-   <select class="input" id="edit-filter_teacher">
+   <select class="input"  id="edit-filter">
    </select>
    </li>
 
    <li>
-   <a id="btn-filter_class"  href="javascript:void(0)">Показать для</a>
-   <select class="input" id="edit-filter_class">
-   </select>
-   </li>
+   <a id="btn-upload-ttable" href="javascript:void(0)">Закачать расписание</a></li>
+   
    <li>
-   <a id="btn-upload-ttable" href="javascript:void(0)">Закачать расписание</a></li>  
+   <a id="btn-report-class" href="javascript:void(0)">Отчет по группам</a></li>
+
+   <li>
+   <a id="btn-report-teacher" href="javascript:void(0)">Отчет по преподавателям</a></li>
+   
+   <li class="hide" id="id-show-report">
+   <a id="btn-show-report" href="javascript:void(0)">Показать отчет</a></li>  
 {% endblock %} 
 
 
@@ -28,7 +39,7 @@
 <th>&nbsp;</th>
 <th>Дисциплина</th>
 <th>Тип</th>
-<th>Субъект</th>
+<th id="thPartner">Субъект</th>
 <th>Место</th>
 <th>Время</th>
 <th>&nbsp;</th>
@@ -41,7 +52,8 @@
 {{ render_combo("edit-period", "Пара") }}
 {% endblock %}
 
-{% block scripts %}
+
+{% block modals %}
 <div class="modal hide" id="form-upload-ttable">
     <div class="modal-header">
     <a class="close" data-dismiss="modal">×</a>
@@ -65,7 +77,24 @@
     </div>
 </form>
 </div>
+{% endblock %}
 
+
+{% block other_content %}
+<table id="tbl-selected-res" class="table table-striped hide">
+<thead>
+<th>&nbsp;</th>
+<th>Название</th>
+<th>Переместить</th>
+</thead>
+<tbody>
+
+</tbody>
+</table>
+{% endblock %}
+
+
+{% block scripts %}
 <script id="main-table-template" type="text/x-jquery-template">
 <tr id="main-table-row-${id}" objectId="${id}">
 {% raw %}
@@ -81,6 +110,27 @@
 		<span width="24px">&nbsp;</span>
 {% endraw %}
 	</td>
+</tr>
+</script>
+
+<script id="selected-res-template" type="text/x-jquery-template">
+<tr id="row-selected-res-${id}" objectId="${id}">
+{% raw %}
+  <td><input type="checkbox" /></td>
+  <td>${ name }</td>
+  <td>
+    <a class="button up" href="javascript:void(0)">
+      <i class="icon-arrow-up"></i></a>
+    <a class="button down" href="javascript:void(0)">
+      <i class="icon-arrow-down"></i></a>
+{% endraw %}
+  </td>
+</tr>
+</script>
+
+<script id="selected-res-empty-template" type="text/x-jquery-template">
+<tr>
+  <td colspan="3">Записи отсутствуют</td>
 </tr>
 </script>
 
@@ -102,99 +152,9 @@
     	"5": "Сб",
     }
   };
-
-  var ccunits = {};
-  var currPartner = "class";
-  autoLoad = false;
-	var baseAjaxParams = "?ttable_id={{ttable_id}}";
-	var ajaxParams = baseAjaxParams;
-	var sampleFields = [];
-	var comboFields = ["room_id", "day", "period"];
-	var MAX_PERIOD = {{max_period}};
-	
-	  function getForCcunitCombo(objType, objId) {
-	      var value = ccunits[objId];
-	      if (value == undefined)
-	          return "<?>";
-	      return getForCombo(objType, value[objType + "_id"]);
-	  }
-	  
-	  $(document).ready(function(){
-	      populateCombo($("#edit-room_id"), combos["room"]);
-	      populateCombo($("#edit-day"), combos["day"]);
-	      populateCombo($("#edit-period"), combos["period"]);
-	      populateCombo($("#edit-filter_teacher"), combos["teacher"]);
-	      populateCombo($("#edit-filter_class"), combos["class"]);
-	      currPartner = "class";
-	      for (var k in combos["class"]) {
-	    	  ajaxParams = baseAjaxParams + "&class_id=" + k;
-	    	  break;
-	      }
-          
-	      $.get("{{url_for("ajax_ccunit_get")}}?curriculum_id={{curriculum_id}}",
-	        function(data){
-	          for (var i = 0; i < data.values.length; ++i) {
-	              var unit = data.values[i];
-	              ccunits[unit.id] = unit;
-	          }       
-	          reloadTable();
-	       }, "json");
-	      
-	        $("#btn-upload-ttable").click(
-	            function() {
-	                $('#form-upload-ttable').modal({
-	                    keyboard: true
-	                });
-	            }
-	        );
-	        
-	        $("#btn-filter_class").click(function() {
-	            currPartner = "class";
-	            ajaxParams = baseAjaxParams + "&class_id=" + $("#edit-filter_class").attr("value");
-	            reloadTable();
-	        });
-	        $("#btn-filter_teacher").click(function() {
-                currPartner = "teacher";
-                ajaxParams = baseAjaxParams + "&teacher_id=" + $("#edit-filter_teacher").attr("value");
-                reloadTable();
-            });
-	    });  
-	  
-	  
-	function formEditorGetObject() {
-		var currObject = {};
-		currObject.day_per = parseInt($("#edit-day").attr("value")) * MAX_PERIOD
-		  + parseInt($("#edit-period").attr("value")) - 1;
-		currObject.room_id = $("#edit-room_id").attr("value");
-		currObject["ttable_id"] = {{ttable_id}};
-		return currObject;
-	}
-	
-	function formEditorFill(objectId) {
-		var currObject = { "room_id": tableData[objectId].room_id };
-		var day_per = tableData[objectId].day_per;
-		currObject.day = Math.ceil(day_per / MAX_PERIOD);
-		currObject.period = day_per % MAX_PERIOD + 1;
-		for (var i = 0; i < comboFields.length; ++i) {
-            var fld = comboFields[i];
-            $("#edit-" + fld + " [value=" + currObject[fld] + "]").attr("selected", "selected");
-		}
-	}
-	
-	function formEditorClear() {	
-		for (var i = 0; i < sampleFields.length; ++i) {
-			var fld = sampleFields[i];
-			$("#edit-" + fld).attr("value", "");
-		}
-	}
-
-	function getObjectName(objectId) {
-		return objectId;
-	}
-	
-	function getForDayPer(day_per) {
-		return combos.day[Math.ceil(day_per / MAX_PERIOD)] + " " + 
-		    combos.period[day_per % MAX_PERIOD + 1];
-	}
+  
+  var MAX_PERIOD = {{max_period}};
+  var ttable_id = {{ttable_id}};
+  var curriculum_id = {{curriculum_id}};
 </script>
 {% endblock %}

@@ -23,9 +23,12 @@ class BaseEntity:
 
     def __init__(self, **obj_json):
         self.ensure_fields()
-        for field in self.fields:
-            if field in obj_json:
-                setattr(self, field, obj_json[field])
+        self.update(obj_json, prohibit=set())
+        
+    def update(self, obj_json, prohibit=set(("id", "rtype"))):
+        for field in (set(self.fields) & set(obj_json.iterkeys())
+                      - prohibit):
+            setattr(self, field, obj_json[field])
 
     def to_json(self):
         self.ensure_fields()
@@ -33,6 +36,16 @@ class BaseEntity:
         for field in self.fields:
             json[field] = getattr(self, field)
         return json
+
+
+class Resource(BaseEntity, db.Model):
+    __tablename__ = "resource"
+    id = db.Column(db.Integer, primary_key=True)
+    rtype = db.Column(db.String(8))
+    
+    def __init__(self, *args, **kwargs):
+        super(Resource, self).__init__(*args, **kwargs)
+        self.rtype = self.__class__.__name__
 
 
 class Faculty(BaseEntity, db.Model):
@@ -49,18 +62,18 @@ class Department(BaseEntity, db.Model):
     name = db.Column(db.Unicode(255), unique=True)
 
 
-class Teacher(BaseEntity, db.Model):
+class Teacher(Resource):
     __tablename__ = "teacher"
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey('resource.id'), primary_key=True)
     department_id = db.Column(db.Integer, nullable=False)
     name = db.Column(db.Unicode(255))
     surname = db.Column(db.Unicode(255))
     patronyme = db.Column(db.Unicode(255))
 
 
-class Group(BaseEntity, db.Model):
+class Group(Resource):
     __tablename__ = "group"
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey('resource.id'), primary_key=True)
     department_id = db.Column(db.Integer, nullable=False)
     name = db.Column(db.Unicode(255))
     size = db.Column(db.Integer)
@@ -73,9 +86,9 @@ class Building(BaseEntity, db.Model):
     bld_group = db.Column(db.Integer)
 
 
-class Room(BaseEntity, db.Model):
+class Room(Resource):
     __tablename__ = "room"
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey('resource.id'), primary_key=True)
     building_id = db.Column(db.Integer, nullable=False)
     name = db.Column(db.Unicode(255))
     size = db.Column(db.Integer)
