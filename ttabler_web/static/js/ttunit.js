@@ -93,10 +93,15 @@ $(document).ready(function() {
 		reportType = "class";
 		fillSelectedRes();
 	});
-	
 	$("#btn-report-teacher").click(function() {
 		reportType = "teacher";
 		fillSelectedRes();
+	});
+	$("#btn-download-ttm").click(function() {
+		window.open("/api/ttm?ttable_id=" + ttable_id);
+	});
+	$("#btn-build-ttable").click(function() {
+		window.location = "/api/build_ttable?ttable_id=" + ttable_id;
 	});
 });
 
@@ -114,7 +119,7 @@ function formEditorFill(objectId) {
 		"room_id" : tableData[objectId].room_id
 	};
 	var day_per = tableData[objectId].day_per;
-	currObject.day = Math.ceil(day_per / MAX_PERIOD);
+	currObject.day = Math.floor(day_per / MAX_PERIOD);
 	currObject.period = day_per % MAX_PERIOD + 1;
 	for ( var i = 0; i < comboFields.length; ++i) {
 		var fld = comboFields[i];
@@ -135,8 +140,8 @@ function getObjectName(objectId) {
 }
 
 function getForDayPer(day_per) {
-	return combos.day[Math.ceil(day_per / MAX_PERIOD)] + " "
-			+ combos.period[day_per % MAX_PERIOD + 1];
+	return combos.day[Math.floor(day_per / MAX_PERIOD)] + " "
+		+ combos.period[day_per % MAX_PERIOD + 1];
 }
 
 
@@ -165,7 +170,7 @@ function fillSelectedRes() {
 	$("#tbl-selected-res").show();
 	$("#id-show-report").show();
 	$("#main-table").hide();
-	
+
 	var reportDataArr = [];
 	var reportCombo = combos[reportType];
 	for (var i in reportCombo) {
@@ -182,10 +187,10 @@ function fillSelectedRes() {
 }
 
 $(function() {
-	$("#show-report").click(onClickGenRepo);
+	$("#btn-show-report").click(onClickShowReport);
 });
 
-function onClickGenRepo() {
+function onClickShowReport() {
 	var selectedIds = [];
 	$("#tbl-selected-res tr").each(function() {
 		var $this = $(this);
@@ -194,7 +199,11 @@ function onClickGenRepo() {
 		}
 	});
 	console.log(selectedIds);
-	window.open("/api/ttable_report?ttable_id=" + ttable_id +
+	if (selectedIds.length > 0) {
+		window.open("/api/ttable_report?ttable_id=" + ttable_id +
 			"&rtype=" + reportType + 
 			"&ids=" + selectedIds);
+	} else {
+		alert("Выберите хотя бы один объект!")
+	}
 }

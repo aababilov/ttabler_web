@@ -27,8 +27,6 @@
                </ul>
            </li>
             
-           <li><a href="{{url_for("page_curriculum")}}">Учебные поручения</a></li>
-           
            <li class="dropdown">
                <a href="#" class="dropdown-toggle" data-toggle="dropdown">
                 Занятия
@@ -39,18 +37,29 @@
                  <li><a href="{{url_for("page_lkind")}}">Типы занятий</a></li>
                </ul>
             </li>
+            
+            <li class="dropdown">
+               <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                Расписания
+                <b class="caret"></b>
+               </a>
+               <ul class="dropdown-menu">
+                 <li><a href="{{url_for("page_curriculum")}}">Учебные поручения</a></li>
+                 <li><a href="{{url_for("page_ttable_progress")}}">Строящееся расписание</a></li>
+               </ul>
+            </li>
         </ul>
         
         <ul class="nav pull-right">
-          <li><a href="#">Помощь</a></li>
+          <li><a href="/ttabler_web/help">Помощь</a></li>
           <li><a href="#">Выход</a></li>
         </ul>
       </div>
     </div>
 </div>
-{% endblock %}
+{% endblock navbar %}
 
-{% block all_modals %}
+{% block modals %}
 
 {% block form_editor %}
 <div class="modal hide" id="form-editor">
@@ -87,12 +96,9 @@
     <a href="javascript:void(0)" data-dismiss="modal" class="btn">Нет</a>    
     </div>
 </div>
-{% endblock %}
+{% endblock form_confirm %}
 
-{% block modals %}
-{% endblock %}
-
-{% endblock all_modals %} 
+{% endblock modals %} 
     
 
 {% block content %}
@@ -110,7 +116,7 @@
  
 </header>
 
-{% block main_table %} 
+{% block main_table %}
 <table id="main-table" class="table table-striped">
 	<thead>
 		<tr>
@@ -128,16 +134,12 @@
 		</tr>
 	</tbody>
 </table>
-{% endblock %}
+{% endblock main_table %}
 
-{% block other_content %}
-{% endblock %}
-
-{% endblock %}
+{% endblock content %}
 
 
-
-{% block all_scripts %}
+{% block scripts %}
 
 <script>
 main_table_url = "{{main_table_url}}";
@@ -149,9 +151,9 @@ main_table_url = "{{main_table_url}}";
   <td colspan="{{ main_table_col_count }}">Записи отсутствуют</td>
 </tr>
 </script>
+{% endblock main_table_empty_template %}
+
+{% block extra_scripts %}
 {% endblock %}
 
-{% block scripts %}
-{% endblock %}
-
-{% endblock %}
+{% endblock scripts %}

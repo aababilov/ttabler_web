@@ -14,7 +14,7 @@
       	src='{{ url_for("static", filename="js/" + script_name) }}' ></script>
     {% endfor %}
     {% for css_name in ["bootstrap.min.css", "bootstrap-responsive.min.css",
-      "jquery-ui.css", "style.css"] %}
+      "jquery-ui.css", "docs.css", "style.css"] %}
     	<link media='screen' rel='stylesheet'
     		href='{{ url_for("static", filename="css/" + css_name) }}' />
     {% endfor %}
@@ -22,9 +22,9 @@
     {% block headercss %}{% endblock %}
   </head>
   <body>
-    {% block all_scripts %}
+    {% block scripts %}
     {% endblock %} 
-    
+
     {% block modals %}
     {% endblock %} 
      

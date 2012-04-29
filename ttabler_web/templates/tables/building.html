@@ -15,10 +15,12 @@
 
 {% block form_editor_fields %}
 {{ render_edit("edit-name", "Название") }}
+{{ render_edit("edit-bld_group", "Группа") }}
 {% endblock %}
 
 
-{% block scripts %}
+{% block extra_scripts %}
+
 <script id="main-table-template" type="text/x-jquery-template">
 <tr id="main-table-row-${id}" objectId="${id}">
 {% raw %}

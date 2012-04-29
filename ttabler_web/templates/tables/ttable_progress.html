@@ -1,0 +1,50 @@
+{% extends 'tables/base.html' %}
+
+{% set main_table_col_count = 4 %}
+{% set main_table_url = url_for("ajax_ttable_get") %}
+{% set form_editor_header = "" %}
+{% set page_title = "Строящееся расписание" %}
+
+{% from "_formhelpers.html" import render_file %}
+
+{% block headerjs %}
+{{ super() }}
+<script charset='utf-8' type='text/javascript'
+  src='{{ url_for("static", filename="js/ttable_progress.js") }}' ></script>
+{% endblock %}
+
+{% block main_buttons %}
+<li>
+<li id="li-interrupt"><a id="btn-interrupt" href="javascript:void(0)">Прервать</a>
+<li id="li-show_result" class="hide"><a id="btn-show_result" href="javascript:void(0)">Показать результат</a>
+{% endblock %} 
+
+{% block main_table %}
+<p>Комментарий: <span id="ttable_comment">отсутствует</span>
+{{ super() }}
+{% endblock main_table %}
+
+{% block main_table_header %}
+<th>Поколение</th>
+<th>Число индивидов</th>
+<th>Штраф</th>
+<th>Время</th>
+{% endblock %}
+
+
+{% block extra_scripts %}
+{% raw %}
+<script id="main-table-template" type="text/x-jquery-template">
+<tr id="main-table-row-${id}" objectId="${id}">
+  <td>${ generation }</td>
+  <td>${ individuals }</td>
+  <td>${ fitness }</td>
+  <td>${ toHMS(time) }</td>
+</tr>
+</script>
+{% endraw %}
+
+<script>    
+  var ajaxParams = "?curriculum_id={{curriculum_id}}"
+</script>
+{% endblock %}

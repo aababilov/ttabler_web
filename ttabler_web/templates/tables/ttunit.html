@@ -1,8 +1,7 @@
 {% extends 'tables/base.html' %}
 
 {% block headerjs %}
-<script charset='utf-8' type='text/javascript'
-  src='{{ url_for("static", filename="js/common.js") }}' ></script>
+{{ super() }}
 <script charset='utf-8' type='text/javascript'
   src='{{ url_for("static", filename="js/ttunit.js") }}' ></script>
 {% endblock %}
@@ -21,18 +20,20 @@
    </select>
    </li>
 
+   <li><a id="btn-download-ttm" href="javascript:void(0)">TTM</a></li>
+   <li><a id="btn-build-ttable" href="javascript:void(0)">Построить</a></li>
+   <li><a id="btn-upload-ttable" href="javascript:void(0)">Закачать</a></li>
+      
    <li>
-   <a id="btn-upload-ttable" href="javascript:void(0)">Закачать расписание</a></li>
-   
-   <li>
-   <a id="btn-report-class" href="javascript:void(0)">Отчет по группам</a></li>
+	  <ul>
+	   <li><a id="btn-report-class" href="javascript:void(0)">Отчет по группам</a></li>
+	   <li><a id="btn-report-teacher" href="javascript:void(0)">Отчет по преподавателям</a></li>
+	   </ul>
+   </li>
 
-   <li>
-   <a id="btn-report-teacher" href="javascript:void(0)">Отчет по преподавателям</a></li>
-   
    <li class="hide" id="id-show-report">
    <a id="btn-show-report" href="javascript:void(0)">Показать отчет</a></li>  
-{% endblock %} 
+{% endblock %}
 
 
 {% block main_table_header %}
@@ -54,10 +55,12 @@
 
 
 {% block modals %}
+{{ super() }}
+
 <div class="modal hide" id="form-upload-ttable">
     <div class="modal-header">
     <a class="close" data-dismiss="modal">×</a>
-    <h3>Закачать ведомость учебных поручений</h3>
+    <h3>Закачать расписание</h3>
     </div>
 <form class="form-horizontal" enctype="multipart/form-data"
     method="POST" action="{{url_for("ttable_upload")}}">
@@ -80,7 +83,9 @@
 {% endblock %}
 
 
-{% block other_content %}
+{% block content %}
+{{ super() }}
+
 <table id="tbl-selected-res" class="table table-striped hide">
 <thead>
 <th>&nbsp;</th>
@@ -94,28 +99,27 @@
 {% endblock %}
 
 
-{% block scripts %}
+{% block extra_scripts %}
+
+{% raw %}
 <script id="main-table-template" type="text/x-jquery-template">
 <tr id="main-table-row-${id}" objectId="${id}">
-{% raw %}
 	<td>&nbsp;</td>
     <td>${ getForCcunitCombo("subject", ccunit_id) }</td>
     <td>${ getForCcunitCombo("lkind", ccunit_id) }</td>
     <td>${ getForCcunitCombo(currPartner, ccunit_id) }</td>
     <td>${ getForCombo("room", room_id) }</td>
     <td>${ getForDayPer(day_per) }</td>
-	<td>
+  	<td>
 		<a class="button" href="javascript:void(0)"
 			onClick="itemEdit(${id})"><i class="icon-pencil"></i></a>
 		<span width="24px">&nbsp;</span>
-{% endraw %}
 	</td>
 </tr>
 </script>
 
 <script id="selected-res-template" type="text/x-jquery-template">
 <tr id="row-selected-res-${id}" objectId="${id}">
-{% raw %}
   <td><input type="checkbox" /></td>
   <td>${ name }</td>
   <td>
@@ -123,7 +127,6 @@
       <i class="icon-arrow-up"></i></a>
     <a class="button down" href="javascript:void(0)">
       <i class="icon-arrow-down"></i></a>
-{% endraw %}
   </td>
 </tr>
 </script>
@@ -133,6 +136,7 @@
   <td colspan="3">Записи отсутствуют</td>
 </tr>
 </script>
+{% endraw %}
 
 <script>
   var combos = { 
@@ -143,18 +147,10 @@
             {% endfor %}
         },
     {% endfor %}
-    "day": {
-    	"0": "Пн",
-    	"1": "Вт",
-    	"2": "Ср",
-    	"3": "Чт",
-    	"4": "Пт",
-    	"5": "Сб",
-    }
   };
   
   var MAX_PERIOD = {{max_period}};
   var ttable_id = {{ttable_id}};
   var curriculum_id = {{curriculum_id}};
 </script>
-{% endblock %}
+{% endblock extra_scripts %}

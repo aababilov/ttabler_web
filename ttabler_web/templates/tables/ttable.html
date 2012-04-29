@@ -24,7 +24,7 @@
 {% endblock %}
 
 
-{% block scripts %}
+{% block extra_scripts %}
 <script id="main-table-template" type="text/x-jquery-template">
 <tr id="main-table-row-${id}" objectId="${id}">
 {% raw %}
@@ -83,4 +83,4 @@
 		return "расписание " + tableData[objectId].name;
 	}
 </script>
-{% endblock %}
+{% endblock extra_scripts %}

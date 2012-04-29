@@ -17,6 +17,9 @@ class TtmParser(object):
     def parse(self, f):
         self.dom = xml.dom.minidom.parse(f)
 
+    def parseString(self, s):
+        self.dom = xml.dom.minidom.parseString(s)
+        
     def process_resources(self, res0):
         time_dim = None
         lead_rtype = None
@@ -39,7 +42,6 @@ class TtmParser(object):
         self.lead_rtype = lead_rtype
 
     def iter_events(self):
-        time_dim = self.time_dim 
         for event_node in (self.dom.getElementsByTagName("events")[0].
                            getElementsByTagName("event")):
             event = {}
@@ -56,7 +58,6 @@ class HtmlPrinter(object):
     @staticmethod    
     def split_res(res):
         return res.split(",")
-
 
     @staticmethod
     def print_ccunit(ccunit, row2, colspan, no_slave):
@@ -111,6 +112,7 @@ class HtmlPrinter(object):
             "    }\n"
             "  </style>\n"
             "</head>\n"
+            "<title>Расписание</title>\n"
             "<body>\n"		
             "\t<table border=1 cellpadding=\"10\"\n"		
             "\t       style=\"border-collapse:collapse;border:solid\">\n"		

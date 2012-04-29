@@ -79,6 +79,12 @@ class Group(Resource):
     size = db.Column(db.Integer)
 
 
+class Stream(Resource):
+    __tablename__ = "stream"
+    id = db.Column(db.Integer, db.ForeignKey('resource.id'), primary_key=True)
+    name = db.Column(db.Unicode(255))
+
+
 class Building(BaseEntity, db.Model):
     __tablename__ = "building"
     id = db.Column(db.Integer, primary_key=True)
@@ -121,6 +127,7 @@ class Curriculum(BaseEntity, db.Model):
     comment = db.Column(db.Unicode(255))
     max_per_teacher = db.Column(db.Integer)
     max_per_student = db.Column(db.Integer)
+    desires = db.Column(db.Text)
 
     
 class Ccunit(BaseEntity, db.Model):

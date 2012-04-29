@@ -7,6 +7,12 @@ import argparse
 from HTMLParser import HTMLParser
 
 
+def to_utf8(s):
+    if isinstance(s, unicode):
+        return s.encode("utf-8")
+    return s
+
+
 def charcount(s, c):
     num = 0
     for c1 in s:
@@ -34,7 +40,7 @@ re_room_ext = re.compile(r"^\d+\s+(\S+\s+)*(\S+)$")
 class RoomParser(object):
     def __init__(self):
         self.clear()
-    
+
     def clear(self):
         self.buildings = {}
         self.room_size = {}
@@ -126,9 +132,15 @@ class TtableHtmlParser(HTMLParser):
         except:
             return default
 
-    def add_one_event(self, subject, teacher, stream, room, day, pair, colspan):
-        self.events.append([subject, teacher, stream, room, day, pair])
-        
+    def add_one_event(self, subject, teacher, stream, room, day, period):
+        self.events.append({
+            "subject": subject,
+            "teacher": teacher,
+            "class": stream,
+            "room": room,
+            "time": (day, period)
+        })
+
     def add_event(self, event_text, room_text, cell_no, colspan, week):
         if event_text is None:
             return
@@ -152,13 +164,13 @@ class TtableHtmlParser(HTMLParser):
 
         if week == 2:
             self.add_one_event(subject, teacher, stream, room,
-                               self.day, self.pair, colspan)
+                               self.day, self.pair)
             self.add_one_event(subject, teacher, stream, room,
-                               self.day + self.week_length, self.pair, colspan)
+                               self.day + self.week_length, self.pair)
         else:
             self.add_one_event(subject, teacher, stream, room,
                                self.day + week * self.week_length,
-                               self.pair, colspan)
+                               self.pair)
 
     def process_row(self):
         #print self.time_text
@@ -273,50 +285,54 @@ class TtableHtmlParser(HTMLParser):
     def accumulate_events(self):
         event_acc = {}
         for event in self.events:
-            key = (event[3], event[4], event[5])
-            if event[3] in self.ignore_time:
+            key = (event["room"], event["time"])
+            if event["room"] in self.ignore_time:
                 oth_event = None
             else:
                 oth_event = event_acc.get(key, None)
             if oth_event:
-                oth_event[2] += "," + event[2]
-                event[2] = None
+                oth_event["class"] += "," + event["class"]
+                event["class"] = None
             else:
                 event_acc[key] = event
-        self.events = [event for event in self.events if event[2]]
+        self.events = [event for event in self.events if event["class"]]
         lecturers = {}
         for event in self.events:
-            event[2] = ",".join(sorted(event[2].split(",")))
-            self.resources["class"].add(event[2])
-            self.resources["room"].add(event[3])
-            teacher = event[1]
+            event["class"] = ",".join(sorted(event["class"].split(",")))
+            self.resources["class"].add(event["class"])
+            self.resources["room"].add(event["room"])
+            teacher = event["teacher"]
             if teacher:
-                lecturers[(event[0], event[2])] = teacher
+                lecturers[(event["subject"], event["class"])] = teacher
 
         for event in self.events:
-            subject = event[0]
-            teacher = self.curriculum.get((subject, event[2]), None)
+            subject = event["subject"]
+            teacher = self.curriculum.get((subject, event["class"]), None)
             if teacher:
-                event[1] = teacher
-            elif not event[1]:
-                event[1] = (
-                    lecturers.get((subject, event[2]), None)
+                event["teacher"] = teacher
+            elif not event["teacher"]:
+                event["teacher"] = (
+                    lecturers.get((subject, event["class"]), None)
                     or ("TEACHER OF %s" % subject))
-            self.resources["teacher"].add(event[1])
+            self.resources["teacher"].add(event["teacher"])
 
 
 class TtmPrinter(object):
     
-    def __init__(self, out_file, prolog, week_length, events,
+    def __init__(self, out_file, modules, week_length, events,
                  resources, buildings, room_size, ignore_time):
         self.out_file = out_file
-        self.prolog = prolog
+        self.modules = modules
         self.week_length = week_length
-        self.events = events
-        self.resources = resources
-        self.buildings = buildings
-        self.room_size = room_size
-        self.ignore_time = ignore_time
+        self.events = [dict(((k, to_utf8(v)) for k, v in ev.iteritems()))
+                       for ev in events]
+        self.resources = dict(((k, [to_utf8(i) for i in v])
+                               for k, v in resources.iteritems()))
+        self.buildings = dict(((to_utf8(k), v)
+                               for k, v in buildings.iteritems()))
+        self.room_size = dict(((to_utf8(k), v)
+                               for k, v in room_size.iteritems()))
+        self.ignore_time = [to_utf8(i) for i in ignore_time]
 
     def print_resource_type(self, res_type):
         print >>self.out_file, "\t\t\t<resourcetype type=\"%s\">" % res_type
@@ -363,30 +379,35 @@ class TtmPrinter(object):
             self.print_resource_type(res_type)
         print >>self.out_file, "\t\t</variable>\n"
         print >>self.out_file, "\t</resources>\n"
-        
+
     def print_events(self):
         print >>self.out_file, "\t<events>"
-        self.events.sort(key=lambda e: (e[0], e[4], e[5]))
-        for event in self.events:
+        for event in sorted(self.events,
+                            key=lambda e: (e["subject"], e.get("time", None))):
             print >> self.out_file, (
-                "\t\t<event name=\"%s\" repeats=\"1\">\n"
-                "\t\t\t<resource type=\"teacher\" name=\"%s\"/>\n"
-                "\t\t\t<resource type=\"class\" name=\"%s\"/>\n"
-                "\t\t\t<resource type=\"room\" name=\"%s\"/>\n"
-                "\t\t\t<resource type=\"time\" name=\"%d %d\"/>\n"
-                "\t\t</event>") % tuple(event)
+                "\t\t<event name=\"{subject}\" repeats=\"1\">\n"
+                "\t\t\t<resource type=\"teacher\" name=\"{teacher}\"/>\n"
+                "\t\t\t<resource type=\"class\" name=\"{class}\"/>".format(**event))
+            try:
+                room = event["room"]
+            except KeyError:
+                pass
+            else:
+                if room:
+                    print >> self.out_file, (
+                        "\t\t\t<resource type=\"room\" name=\"%s\"/>" % room)
+            if "time" in event:
+                print >> self.out_file, (
+                    "\t\t\t<resource type=\"time\" "
+                    "name=\"{time[0]} {time[1]}\"/>".format(**event))
+            print >> self.out_file, "\t\t</event>"
         print >>self.out_file, "\t</events>\n"
 
     def start_ttm(self):
         print >>self.out_file, """<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE ttm PUBLIC "-//Tablix//DTD TTM 0.2.0//EN" "http://www.tablix.org/releases/dtd/tablix2r0.dtd">
 <ttm version="0.2.0" fitness="100000">
 """
-        if self.prolog:
-            try:
-                print >>self.out_file, open(self.prolog, "rt").read()
-            except:
-                pass
+        print >>self.out_file, self.modules
 
     def end_ttm(self):
         print >>self.out_file, "</ttm>"
@@ -420,17 +441,19 @@ class TtmPrinter(object):
             
     def print_ccl(self):
         event_count = {}
-        for (sub, tea, cla, roo, day, per) in self.events:
-            key = (sub, tea, cla)
+        for event in self.events:
+            key = (event["subject"], event["teacher"], event["class"])
             event_count[key] = event_count.get(key, 0) + 1
-        for key in sorted(event_count.keys(), key=lambda e: e[1]):
+        for key in sorted(event_count.iterkeys(), key=lambda e: e[1]):
             print >>self.out_file, "%s\t%s\t%s\t%s" % (
                 key[0], key[1], key[2], event_count[key])
 
     def print_room(self):
         room_size = {}
-        for (sub, tea, cla, roo, day, per) in self.events:
-            room_size[roo] = max(1 + charcount(cla, ","), room_size.get(roo, 0))
+        for event in self.events:
+            room_size[event["room"]] = max(
+                1 + charcount(event["class"], ","),
+                room_size.get(event["room"], 0))
         for roo in sorted(room_size):
             print "%s\t%d" % (roo, room_size[roo])
         
@@ -439,7 +462,7 @@ def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("-o", "--output", default="-", help="output file")
     arg_parser.add_argument("input", nargs="+", default=None, help="input files")
-    arg_parser.add_argument("-p", "--prolog", default="prolog.xml", help="prolog file")
+    arg_parser.add_argument("-m", "--modules", default="modules.xml", help="modules file")
     arg_parser.add_argument("--ignore_time", default="ignore.txt", help="ignore sametime file")
     arg_parser.add_argument("--curriculum", default=None, help="curriculum file")
     arg_parser.add_argument("--rooms", default=None, help="rooms description")
@@ -471,7 +494,12 @@ def main():
                 if args.output == "-"
                 else open(args.output, "wt"))
 
-    printer = TtmPrinter(out_file, args.prolog,
+    try:
+        with open(args.modules, "rt") as f:
+            modules = f.read()
+    except:
+        modules = ""
+    printer = TtmPrinter(out_file, modules,
                          html_parser.week_length, html_parser.events, html_parser.resources,
                          room_parser.buildings, room_parser.room_size,
                          it_parser.ignore_time)

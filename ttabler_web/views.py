@@ -8,7 +8,7 @@ Created on Mar 18, 2012
 
 import logging
 import os
-
+import cStringIO
 import json
 
 from flask import Flask, request, session, g, redirect, url_for, \
@@ -19,6 +19,7 @@ from . import app
 from .database import *
 from sqlalchemy.exc import *
 from . import utils
+from ttabler_web.utils import ResourceDealer
 
 
 def to_json_response(obj):
@@ -73,7 +74,7 @@ def ajax_persistent_delete(PersistentClass, id):
 
 def add_ajax_rules():
     simple_classes = (
-        Faculty, Department, Group, Teacher,
+        Faculty, Department, Group, Stream, Teacher,
         Building, Room, Capability,
         Subject, Lkind,
         Curriculum, Ccunit,
@@ -258,22 +259,17 @@ def ajax_ccunit_get():
     return ajax_persistent_get(Ccunit, **filter_by)
 
 
-def map_by_lambda(cls, lam=lambda obj: obj.name):
-    map = {}
-    query = cls.query
-    for obj in query.all():
-        map[obj.id] = lam(obj) 
-    return map
-
 def ccunit_combos():
+    dealer = ResourceDealer(None)
+    dealer.load_cts()
     return {
-            "teacher": map_by_lambda(
-                Teacher, 
-                lambda obj: "%s %s %s" % (
-                    obj.surname, obj.name or "", obj.patronyme or "")),
-            "subject": map_by_lambda(Subject),
-            "lkind": map_by_lambda(Lkind, lambda obj: obj.abbrev),
-            "class": map_by_lambda(Group, lambda obj: obj.name)}
+            "teacher": dealer.teacher_id2ttl,
+            "subject": dict(((obj.id, obj.name)
+                             for obj in dealer.subject_by_id.itervalues())),
+            "lkind": dict(((obj.id, obj.abbrev) for obj in Lkind.query.all())),
+            "class": dealer.class_id2ttl,
+    }
+
     
 @app.route('/ccunit', methods=['GET'])
 def page_ccunit():
@@ -299,19 +295,9 @@ def curriculum_upload():
     curriculum_file = request.files["curriculum_file"]
 
     default_department = int(request.form["default_department"])
-    col_nums = {}
-    for rsrc in "class", "teacher", "subject":
-        col_nums[rsrc] = int(request.form["col_" + rsrc])
-    lkinds = [lk.id for lk in Lkind.query.all()]
-    for lk in lkinds:
-        try:
-            col_nums[lk] = int(request.form["col_lkind_%s" % lk])
-        except KeyError, ValueError:
-            pass
-    if not col_nums:
-        raise BadRequest("no col_nums were set")
     
-    utils.curriculum_process(curriculum_id, curriculum_file, default_department, col_nums)
+    utils.curriculum_import(curriculum_id, curriculum_file,
+                            default_department, request.form)
     
     return redirect("%s?curriculum_id=%s" % (url_for("page_ccunit"), curriculum_id))
     
@@ -355,7 +341,13 @@ def page_ttunit():
     combos = ccunit_combos()
     dealer = utils.ResourceDealer(None)
     dealer.load_rooms()
-    combos["room"] = dealer.room_title_by_id
+    day_count = len(utils.DAY_NAMES)
+    combos["day"] = dict((
+        (i, unicode("%s-%d" % 
+            (utils.DAY_NAMES[i % day_count], i / day_count + 1),
+            "utf-8"))
+        for i in xrange(2 * day_count)))
+    combos["room"] = dealer.room_id2ttl
     combos["period"] = dict(((obj.id, "%s:%02s" % (obj.hours, obj.minutes))
                              for obj in Period.query))
     return render_template("tables/ttunit.html",
@@ -370,17 +362,60 @@ def ttable_upload():
     ttable_id = request.form["ttable_id"]
     ttable_file = request.files["ttable_file"]
 
-    utils.ttable_process(ttable_id, ttable_file)
+    utils.ttable_import(ttable_id, ttable_file)
     return redirect("%s?ttable_id=%s" % (url_for("page_ttunit"), ttable_id))
 
 
 @app.route('/api/ttable_report')
 def ttable_report():
-    ret = utils.ttable_report(
+    out_file = cStringIO.StringIO()
+    utils.ttable_report(
+        out_file,
         request.args["ttable_id"],
         request.args["rtype"],
         [int(i) for i in request.args["ids"].split(",")])
+    ret = out_file.getvalue()
+    out_file.close()
     return Response(ret)
+
+
+@app.route('/api/ttm')
+def export_ttm():
+    out_file = cStringIO.StringIO()
+    curriculum_id = request.args.get("curriculum_id", None)
+    ttable_id = request.args.get("ttable_id", None)
+    utils.export_ttm(out_file, curriculum_id, ttable_id)
+    ret = out_file.getvalue()
+    out_file.close()
+    return Response(ret, headers={
+        "Content-Type": "application/xml",
+        "Content-Disposition": "attachment; filename=%s.xml" % 
+          (("timetable-%s" % ttable_id) if ttable_id else
+           "curriculum-%s" % curriculum_id)
+    })
+
+
+@app.route("/api/ttm/interrupt", methods=["POST"])
+def ttm_interrupt():
+    utils.ttm_interrupt()
+    return Response("ok")
+
+@app.route('/ttable_progress')
+def page_ttable_progress():
+    return render_template("tables/ttable_progress.html")
+
+
+@app.route('/api/ttable_progress')
+def ajax_get_ttable_progress():
+    return to_json_response(utils.get_ttable_progress())
+
+
+@app.route('/api/build_ttable')
+def build_ttable():
+    curriculum_id = request.args.get("curriculum_id", None)
+    ttable_id = request.args.get("ttable_id", None)
+    utils.build_ttable(curriculum_id, ttable_id)
+    return redirect(url_for("page_ttable_progress"))
 
 
 @app.route('/', methods=['GET'])
