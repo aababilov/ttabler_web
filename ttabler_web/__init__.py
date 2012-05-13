@@ -14,7 +14,7 @@ from flask import Flask
 
 app = Flask("ttabler_web")
 
-app.config.from_pyfile("/etc/ttabler_web/flask_settings.py")
+app.config.from_pyfile("/etc/ttabler-web/flask_settings.py")
 
 
 from . import views 

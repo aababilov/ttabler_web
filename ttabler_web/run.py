@@ -6,7 +6,6 @@ import logging
 import sys
 
 
-
 def main():
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--no-reload", "-r", default=False, 

@@ -21,7 +21,8 @@ WEEK_LENGTH = 6
 MAX_PERIOD = 100
 IGNORE_TIME = [u"лаб", u"NO_ROOM", u"каф", u"каф. нарк"]
 DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
-WORKING_DIR = "/var/lib/ttabler_web"
+WORKING_DIR = "/var/lib/ttabler-web"
+CONFIG_DIR = "/etc/ttabler-web"
 TEACHER_POST = [u"доц.", u"св.", u"асс.", u"ас.", u"проф."]
 
 
@@ -444,7 +445,7 @@ def export_ttm(out_file, curriculum_id=None, ttable_id=None):
 #                 "\t\t\t<option name=\"not-available\">",
 #                 "</option>");
 #    end_module()
-    desires = {        
+    desires = {
         "placecapability": 75,
         "placesize": 75,
         "holes class": 100,
@@ -458,11 +459,11 @@ def export_ttm(out_file, curriculum_id=None, ttable_id=None):
         "walk": 3,
         "perday class": 1,
     }
-    try:    
+    try:
         desires.update(json.loads(curriculum.desires))
     except:
         pass
-    desires.update({        
+    desires.update({
         "sametime": 200, 
         "timeplace": 250, 
         "sametimeas": 75,
@@ -532,11 +533,12 @@ def export_ttm(out_file, curriculum_id=None, ttable_id=None):
     return ttbl_dealer.curriculum_id
 
 
-signal.signal(signal.SIGCHLD, lambda signum, frame: os.waitpid(-1, 0))
-
-
 def build_ttable(curriculum_id=None, ttable_id=None):
-    _child_build_ttable(curriculum_id, ttable_id)
+    pid = os.fork()
+    if pid == 0:
+        _child_build_ttable(curriculum_id, ttable_id)
+    else:
+        os.waitpid(pid, 0)
 
 
 last_filename = "%s/last" % WORKING_DIR
@@ -564,7 +566,7 @@ def _child_build_ttable(curriculum_id, ttable_id):
     os.makedirs(log_dirname)
     with open(task_filename, "wt") as out_file:
         curriculum_id = export_ttm(out_file, curriculum_id, ttable_id)
-    with open("%s/%s" % (WORKING_DIR, options_basename), "rt") as f:
+    with open("%s/%s" % (CONFIG_DIR, options_basename), "rt") as f:
         options = f.read()
     with open(options_filename, "wt") as f:
         f.write(options)
@@ -586,6 +588,7 @@ def _child_build_ttable(curriculum_id, ttable_id):
          u" по расписанию " + ttable_id
          if ttable_id else u"")
     })
+    os._exit(0)
 
 
 def get_ttable_progress():

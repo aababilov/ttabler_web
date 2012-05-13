@@ -6,7 +6,7 @@ from flaskext.sqlalchemy import SQLAlchemy
 from . import app
 from sqlalchemy.orm.attributes import QueryableAttribute
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////var/tmp/ttabler.db'
+
 db = SQLAlchemy(app)
 
 
