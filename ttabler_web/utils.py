@@ -170,6 +170,9 @@ class ResourceDealer(object):
             ctors[key](value)
 
 
+def is_ttm(file_content):
+    return "<ttm" in file_content[:512].lower()
+
 def curriculum_import(curriculum_id, curriculum_file, default_department, form):
     dealer = ResourceDealer(default_department)
     dealer.load_cts()
@@ -177,7 +180,7 @@ def curriculum_import(curriculum_id, curriculum_file, default_department, form):
     compiled_cclum = []
     file_content = curriculum_file.read()
     lkinds = [lk.id for lk in Lkind.query.all()]
-    if "<ttm" in file_content:
+    if is_ttm(file_content):
         parser = TtmParser()
         parser.parseString(file_content)
         iter_events = list(parser.iter_events())
@@ -345,7 +348,7 @@ def ttable_import(ttable_id, ttable_file):
                         rsrc_dealer.teacher_by_id[unit.teacher_id].surname)
 
     file_content = ttable_file.read()
-    if "<html" in file_content:
+    if not is_ttm(file_content):
         parser = TtableHtmlParser(WEEK_LENGTH, curriculum, IGNORE_TIME)
         parser.process_file(unicode(file_content, "utf-8"))
         parser.accumulate_events()

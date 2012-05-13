@@ -37,6 +37,9 @@ class BaseEntity:
             json[field] = getattr(self, field)
         return json
 
+    def delete_children(self):
+        pass
+
 
 class Resource(BaseEntity, db.Model):
     __tablename__ = "resource"
@@ -129,7 +132,20 @@ class Curriculum(BaseEntity, db.Model):
     max_per_student = db.Column(db.Integer)
     desires = db.Column(db.Text)
 
-    
+    def delete_children(self):
+        connection = db.session.connection()
+        connection.execute(
+            "delete from ccunit where curriculum_id = ?",
+            self.id)
+        connection.execute(
+            "delete from ttunit where ttable_id in"
+            " (select id from ttable where curriculum_id = ?)",
+            self.id)
+        connection.execute(
+            "delete from ttable where curriculum_id = ?",
+            self.id)
+
+
 class Ccunit(BaseEntity, db.Model):
     __tablename__ = "ccunit"
     id = db.Column(db.Integer, primary_key=True)
@@ -152,6 +168,12 @@ class Ttable(BaseEntity, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     curriculum_id = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Unicode(255))
+
+    def delete_children(self):
+        connection = db.session.connection()
+        connection.execute(
+            "delete from ttunit where ttable_id = ?",
+            self.id)
 
 
 class Ttunit(BaseEntity, db.Model):

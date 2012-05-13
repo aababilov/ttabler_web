@@ -67,6 +67,7 @@ def ajax_persistent_delete(PersistentClass, id):
     obj = PersistentClass.query.filter_by(id=id).first()
     if not obj:
         return Response("Object with id=%d is not found\n" % id, status=404)
+    obj.delete_children()
     db.session.delete(obj)
     db.session.commit()
     return Response("Object with id=%d is deleted\n" % id, status=200)

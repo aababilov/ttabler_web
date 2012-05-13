@@ -33,6 +33,8 @@
 	<td>
 		<a class="button" href="javascript:void(0)"
 			onClick="itemEdit(${id})"><i class="icon-pencil"></i></a>
+		<a class="button" href="javascript:void(0)"
+			onClick="itemRemove(${id})"><i class="icon-remove"></i></a>
 		<span width="24px">&nbsp;</span>
 {% endraw %}
        <a class="button" 
@@ -80,7 +82,8 @@
 	}
 
 	function getObjectName(objectId) {
-		return "расписание " + tableData[objectId].name;
+		return "расписание \"" + tableData[objectId].comment +
+		"\"";
 	}
 </script>
 {% endblock extra_scripts %}
